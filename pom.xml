@@ -73,6 +73,14 @@
     <dependencyManagement>
         <dependencies>
 
+            <!-- Runtime -->
+
+            <dependency>
+                <groupId>net.microfalx</groupId>
+                <artifactId>objectpool</artifactId>
+                <version>1.0.0-SNAPSHOT</version>
+            </dependency>
+
 
             <!-- Tests -->
             <dependency>
@@ -101,6 +109,14 @@
     </dependencyManagement>
 
     <dependencies>
+
+        <!-- Runtime -->
+
+        <dependency>
+            <groupId>net.microfalx</groupId>
+            <artifactId>objectpool</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
 
         <!-- Tests -->
         <dependency>
