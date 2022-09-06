@@ -14,3 +14,8 @@ the timeout for core threads is reached (if enabled).
 
 In addition to this specific (but important) enhancement, the thread pool aims to provide various feature to help writing multithread applications easier:
 * TODO
+
+Various interfaces are available to schedule task:
+* `DelayedTask` can be executed and provides the delay to be executed once
+* `ScheduledTask` can be executed and provides the initial delay and the interval/delay to be executed periodically
+* `SingletonTask` can be scheduled and only one instance matching a key will be kept in the queue
