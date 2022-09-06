@@ -1,62 +1,89 @@
 package net.microfalx.threadpool;
 
-import net.microfalx.objectpool.ObjectFactory;
-import net.microfalx.objectpool.ObjectPool;
-
 import java.time.Duration;
+import java.util.Collection;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static java.time.Duration.ofMinutes;
+import static java.time.Duration.ofSeconds;
 
 class OptionsImpl implements ThreadPool.Options {
 
-    ThreadFactory factory;
-    ObjectPool.Options<Thread> options;
+    volatile int maximumSize = 10;
+    Duration keepAliveTime = ofSeconds(60);
+    Duration maximumReuseTime = ofMinutes(15);
+    String namePrefix;
+    boolean daemon;
+    int queueSize = 100;
+    ThreadPool.RejectedHandler rejectedHandler = new CallerRunsPolicy();
+    ThreadPool.FailedHandler failureHandler = new LogFailedHandler();
+    Collection<ThreadPool.ExecutionCallback> executionCallbacks = new CopyOnWriteArrayList<>();
+    Collection<ThreadPool.ScheduleCallback> scheduleCallbacks = new CopyOnWriteArrayList<>();
 
     @Override
-    public int getMinimum() {
-        return options.getMinimum();
+    public int getMaximumSize() {
+        return maximumSize;
     }
 
     @Override
-    public int getMaximum() {
-        return options.getMaximum();
+    public void setMaximumSize(int maximumSize) {
+        this.maximumSize = maximumSize;
     }
 
     @Override
-    public Duration getTimeToLiveTimeout() {
-        return options.getTimeToLiveTimeout();
+    public int getQueueSize() {
+        return queueSize;
     }
 
     @Override
-    public Duration getAbandonedTimeout() {
-        return options.getAbandonedTimeout();
+    public String getNamePrefix() {
+        return namePrefix;
     }
 
     @Override
-    public Duration getInactiveTimeout() {
-        return options.getInactiveTimeout();
+    public boolean isDaemon() {
+        return daemon;
     }
 
+
     @Override
-    public Duration getMaximumWait() {
-        return options.getMaximumWait();
+    public Duration getKeepAliveTime() {
+        return keepAliveTime;
     }
 
     @Override
     public Duration getMaximumReuseTime() {
-        return options.getMaximumReuseTime();
+        return maximumReuseTime;
     }
 
     @Override
-    public int getMaximumReuseCount() {
-        return options.getMaximumReuseCount();
+    public ThreadPool.RejectedHandler getRejectedHandler() {
+        return rejectedHandler;
     }
 
     @Override
-    public ObjectPool.Strategy getStrategy() {
-        return options.getStrategy();
+    public ThreadPool.FailedHandler getFailedHandler() {
+        return failureHandler;
     }
 
-    @Override
-    public ObjectFactory<Thread> getFactory() {
-        return options.getFactory();
+    static class CallerRunsPolicy implements ThreadPool.RejectedHandler {
+
+        @Override
+        public void rejected(Runnable runnable, ThreadPool pool) {
+            if (!pool.isShutdown()) {
+                runnable.run();
+            }
+        }
+
     }
+
+    static class LogFailedHandler implements ThreadPool.FailedHandler {
+
+        @Override
+        public void failed(Runnable runnable, ThreadPool pool, Throwable throwable) {
+            ThreadPoolImpl.LOGGER.error("Received an exception during execution of task " + runnable + " in thread pool " + pool.getOptions().getNamePrefix(), throwable);
+        }
+
+    }
+
 }
