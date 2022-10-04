@@ -93,7 +93,7 @@ class ThreadPoolImplTest {
         Future<Integer> future = pool.submit(new CallableTask(1, FAST_TASK));
         await().atMost(ofSeconds(2))
                 .untilAsserted(() -> assertEquals(1, metrics.getExecutedTaskCount()));
-        assertEquals(1, future.get());
+        assertEquals(10, future.get());
     }
 
     @Test
@@ -118,7 +118,7 @@ class ThreadPoolImplTest {
         pool.scheduleWithFixedDelay(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
         await().until(() -> metrics.getExecutedTaskCount() >= 2);
-        assertEquals(2, metrics.getExecutedTaskCount());
+        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(2);
     }
 
     @Test
@@ -127,7 +127,7 @@ class ThreadPoolImplTest {
         pool.scheduleAtFixedRate(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
         await().until(() -> metrics.getExecutedTaskCount() >= 2);
-        assertEquals(2, metrics.getExecutedTaskCount());
+        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(2);
     }
 
     @Test
