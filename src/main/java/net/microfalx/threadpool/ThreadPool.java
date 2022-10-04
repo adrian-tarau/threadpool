@@ -178,7 +178,6 @@ public interface ThreadPool extends ScheduledExecutorService {
          */
         boolean isDaemon();
 
-
     }
 
     /**

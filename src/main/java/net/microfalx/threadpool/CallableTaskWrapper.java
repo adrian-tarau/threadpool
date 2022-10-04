@@ -10,6 +10,7 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
     volatile long delay;
     volatile long interval;
     volatile long time = System.nanoTime();
+    volatile R result;
 
     CallableTaskWrapper(ThreadPoolImpl threadPool, Callable<R> task, long delay, TimeUnit unit) {
         super(threadPool, task);
@@ -21,7 +22,8 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
 
     @Override
     R doExecute() throws Exception {
-        return getTask().call();
+        future.run();
+        return result;
     }
 
     @Override
@@ -36,7 +38,8 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
 
     @Override
     public R call() throws Exception {
-        return execute();
+        result = getTask().call();
+        return result;
     }
 
     boolean isPeriodic() {

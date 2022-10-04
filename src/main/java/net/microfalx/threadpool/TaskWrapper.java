@@ -25,11 +25,13 @@ abstract class TaskWrapper<T, R> {
 
     R execute() throws Exception {
         beforeExecute();
+        R result = null;
         try {
-            return doExecute();
+            result = doExecute();
         } finally {
-            afterExecute();
+            afterExecute(result);
         }
+        return result;
     }
 
     abstract R doExecute() throws Exception;
@@ -38,7 +40,7 @@ abstract class TaskWrapper<T, R> {
 
     }
 
-    void afterExecute() {
+    void afterExecute(R result) {
 
     }
 

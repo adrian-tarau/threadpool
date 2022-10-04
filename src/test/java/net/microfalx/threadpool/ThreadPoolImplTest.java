@@ -5,12 +5,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.time.Duration.ofSeconds;
 import static org.awaitility.Awaitility.await;
@@ -24,6 +23,8 @@ class ThreadPoolImplTest {
 
     private ThreadPool pool;
     private ThreadPool.Metrics metrics;
+
+    private static CountDownLatch countDown;
 
     @BeforeEach
     void setup() {
@@ -107,8 +108,43 @@ class ThreadPoolImplTest {
     void executeDelayed() {
         pool.execute(new DelayedTask(AVERAGE_TASK));
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() > 0);
+        await().until(() -> metrics.getExecutedTaskCount() >= 1);
         assertEquals(1, metrics.getExecutedTaskCount());
+    }
+
+    @Test
+    void scheduleFixedDelay() {
+        pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_DELAY));
+        pool.scheduleWithFixedDelay(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
+        assertEquals(0, metrics.getExecutedTaskCount());
+        await().until(() -> metrics.getExecutedTaskCount() >= 2);
+        assertEquals(2, metrics.getExecutedTaskCount());
+    }
+
+    @Test
+    void scheduleFixedRate() {
+        pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_RATE));
+        pool.scheduleAtFixedRate(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
+        assertEquals(0, metrics.getExecutedTaskCount());
+        await().until(() -> metrics.getExecutedTaskCount() >= 2);
+        assertEquals(2, metrics.getExecutedTaskCount());
+    }
+
+    @Test
+    void scheduleDelay() {
+        pool.schedule(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, TimeUnit.MILLISECONDS);
+        assertEquals(0, metrics.getExecutedTaskCount());
+        await().until(() -> metrics.getExecutedTaskCount() >= 1);
+        assertEquals(1, metrics.getExecutedTaskCount());
+    }
+
+    @Test
+    void scheduleCallable() throws ExecutionException, InterruptedException, TimeoutException {
+        ScheduledFuture<Integer> future = pool.schedule(new CallableTask(AVERAGE_TASK, 10), AVERAGE_TASK, TimeUnit.MILLISECONDS);
+        assertEquals(0, metrics.getExecutedTaskCount());
+        await().until(() -> metrics.getExecutedTaskCount() >= 1);
+        assertEquals(1, metrics.getExecutedTaskCount());
+        assertEquals(10, future.get(2, TimeUnit.SECONDS));
     }
 
     @Test
@@ -130,6 +166,51 @@ class ThreadPoolImplTest {
         pool.execute(new ScheduledTask(SLOW_TASK));
         assertEquals(0, metrics.getExecutedTaskCount());
         await().untilAsserted(() -> Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThan(15));
+    }
+
+    @Test
+    void executeWithCallerRunsPolicy() throws InterruptedException {
+        int count = pool.getOptions().getMaximumSize() + pool.getOptions().getQueueSize();
+        countDown = new CountDownLatch(count + 10);
+        fireSingleRun(50, count);
+        fireSingleRun(50, 10);
+        assertTrue(countDown.await(4, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void executeWithCustomPolicy() throws InterruptedException {
+        AtomicInteger failureCounter = new AtomicInteger();
+        pool = ThreadPool.builder("Test")
+                .rejectedHandler((runnable, pool1) -> {
+                    failureCounter.incrementAndGet();
+                    runnable.run();
+                })
+                .build();
+        int count = pool.getOptions().getMaximumSize() + pool.getOptions().getQueueSize();
+        countDown = new CountDownLatch(count + 10);
+        fireSingleRun(50, count);
+        fireSingleRun(50, 10);
+        assertTrue(countDown.await(4, TimeUnit.SECONDS));
+        Assertions.assertThat(failureCounter.get()).isGreaterThan(1);
+    }
+
+    @Test
+    void executeWithFailure() throws InterruptedException {
+        countDown = new CountDownLatch(1);
+        pool.execute(new RunnableTask(50, new IOException("Failure")));
+        assertTrue(countDown.await(4, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void executeWithFailureCallback() throws InterruptedException {
+        AtomicInteger failureCounter = new AtomicInteger();
+        pool = ThreadPool.builder("Test")
+                .failureHandler((runnable, pool1, throwable) -> failureCounter.incrementAndGet())
+                .build();
+        countDown = new CountDownLatch(1);
+        pool.execute(new RunnableTask(50, new IOException("Failure")));
+        assertTrue(countDown.await(4, TimeUnit.SECONDS));
+        assertEquals(1, failureCounter.get());
     }
 
     private void fireSingleRun(int executionTime, int count) {
@@ -164,9 +245,15 @@ class ThreadPoolImplTest {
     static class ScheduledTask implements net.microfalx.threadpool.ScheduledTask, Runnable {
 
         private final int executionTime;
+        private final Strategy strategy;
 
         public ScheduledTask(int executionTime) {
+            this(executionTime, Strategy.FIXED_RATE);
+        }
+
+        public ScheduledTask(int executionTime, Strategy strategy) {
             this.executionTime = executionTime;
+            this.strategy = strategy;
         }
 
         @Override
@@ -177,6 +264,11 @@ class ThreadPoolImplTest {
         @Override
         public Duration getInterval() {
             return Duration.ofMillis(Math.max(1, executionTime / 3));
+        }
+
+        @Override
+        public Strategy getStrategy() {
+            return strategy;
         }
 
         @Override
@@ -192,9 +284,15 @@ class ThreadPoolImplTest {
     static class RunnableTask implements Runnable {
 
         private final int executionTime;
+        private Throwable throwable;
 
         RunnableTask(int executionTime) {
             this.executionTime = executionTime;
+        }
+
+        public RunnableTask(int executionTime, Throwable throwable) {
+            this.executionTime = executionTime;
+            this.throwable = throwable;
         }
 
         @Override
@@ -203,18 +301,28 @@ class ThreadPoolImplTest {
                 Thread.sleep(executionTime);
             } catch (InterruptedException e) {
                 // just stop
+            } finally {
+                if (countDown != null) countDown.countDown();
             }
+            if (throwable != null) throw new IllegalStateException(throwable);
         }
     }
 
     static class CallableTask implements Callable<Integer> {
 
-        private Integer value;
-        private int executionTime;
+        private final int executionTime;
+        private final int value;
+        private Throwable throwable;
 
-        CallableTask(Integer value, int executionTime) {
-            this.value = value;
+        CallableTask(int executionTime, int value) {
             this.executionTime = executionTime;
+            this.value = value;
+        }
+
+        public CallableTask(int executionTime, int value, Throwable throwable) {
+            this.executionTime = executionTime;
+            this.value = value;
+            this.throwable = throwable;
         }
 
         @Override
@@ -223,7 +331,10 @@ class ThreadPoolImplTest {
                 Thread.sleep(executionTime);
             } catch (InterruptedException e) {
                 // just stop
+            } finally {
+                if (countDown != null) countDown.countDown();
             }
+            if (throwable != null) throw new IllegalStateException(throwable);
             return value;
         }
     }

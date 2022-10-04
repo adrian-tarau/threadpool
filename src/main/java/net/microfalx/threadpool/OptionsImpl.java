@@ -74,7 +74,6 @@ class OptionsImpl implements ThreadPool.Options {
                 runnable.run();
             }
         }
-
     }
 
     static class LogFailedHandler implements ThreadPool.FailedHandler {
