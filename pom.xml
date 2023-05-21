@@ -58,12 +58,14 @@
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <logback.version>1.7.36</logback.version>
-        <junit.version>5.8.2</junit.version>
-        <assertj.version>3.22.0</assertj.version>
-        <mockito.version>4.6.1</mockito.version>
+        <!-- Runtime -->
+        <logback.version>2.0.7</logback.version>
+        <!-- Tests -->
+        <junit.version>5.9.1</junit.version>
+        <assertj.version>3.24.2</assertj.version>
+        <mockito.version>5.3.1</mockito.version>
+        <jmh.version>1.36</jmh.version>
         <awaitility.version>4.2.0</awaitility.version>
-        <jmh.version>1.34</jmh.version>
     </properties>
 
     <developers>
@@ -90,8 +92,8 @@
                 <version>${logback.version}</version>
             </dependency>
 
-
             <!-- Tests -->
+
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>

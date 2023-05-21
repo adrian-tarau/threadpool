@@ -53,7 +53,7 @@ public interface ThreadPool extends ScheduledExecutorService {
     /**
      * Returns the index associated with a thread part of the thread pool.
      * <p>
-     * Each thread receives a unique index between 1 and {@link Options#getMaximumS()}.
+     * Each thread receives a unique index between 1 and {@link Options#getMaximumSize()}.
      *
      * @param thread the thread
      * @return the index
