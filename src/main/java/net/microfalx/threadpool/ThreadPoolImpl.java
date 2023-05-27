@@ -15,8 +15,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import static net.microfalx.threadpool.ThreadPoolUtils.requireBounded;
-import static net.microfalx.threadpool.ThreadPoolUtils.requireNonNull;
+import static net.microfalx.lang.ArgumentUtils.requireBounded;
+import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 
 /**
  * Thread pool implementation.

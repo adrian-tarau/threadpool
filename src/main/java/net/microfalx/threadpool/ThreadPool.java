@@ -7,7 +7,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static net.microfalx.threadpool.ThreadPoolUtils.*;
+import static net.microfalx.lang.ArgumentUtils.*;
 
 /**
  * A thread pool abstraction.

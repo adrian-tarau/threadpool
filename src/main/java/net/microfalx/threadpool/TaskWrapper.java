@@ -1,6 +1,6 @@
 package net.microfalx.threadpool;
 
-import static net.microfalx.threadpool.ThreadPoolUtils.requireNonNull;
+import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 
 abstract class TaskWrapper<T, R> {
 

@@ -59,6 +59,7 @@
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Runtime -->
+        <lang.version>1.0.0-SNAPSHOT</lang.version>
         <logback.version>2.0.7</logback.version>
         <!-- Tests -->
         <junit.version>5.9.1</junit.version>
@@ -79,6 +80,12 @@
         <dependencies>
 
             <!-- Runtime -->
+
+            <dependency>
+                <groupId>net.microfalx.lang</groupId>
+                <artifactId>lang</artifactId>
+                <version>${lang.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -138,6 +145,11 @@
     <dependencies>
 
         <!-- Runtime -->
+
+        <dependency>
+            <groupId>net.microfalx.lang</groupId>
+            <artifactId>lang</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
