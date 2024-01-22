@@ -60,12 +60,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- Runtime -->
         <lang.version>1.0.0-SNAPSHOT</lang.version>
-        <logback.version>2.0.7</logback.version>
+        <logback.version>2.0.11</logback.version>
         <!-- Tests -->
-        <junit.version>5.9.1</junit.version>
-        <assertj.version>3.24.2</assertj.version>
-        <mockito.version>5.3.1</mockito.version>
-        <jmh.version>1.36</jmh.version>
+        <junit.version>5.10.1</junit.version>
+        <assertj.version>3.25.1</assertj.version>
+        <mockito.version>5.9.0</mockito.version>
+        <jmh.version>1.37</jmh.version>
         <awaitility.version>4.2.0</awaitility.version>
     </properties>
 
