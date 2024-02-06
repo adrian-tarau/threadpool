@@ -247,6 +247,15 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <quiet>true</quiet>
+                            <encoding>UTF-8</encoding>
+                            <notimestamp>true</notimestamp>
+                            <doclint>none</doclint>
+                            <offline>true</offline>
+                            <show>public</show>
+                            <validateLinks>false</validateLinks>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>module-javadocs</id>
