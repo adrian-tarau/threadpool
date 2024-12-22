@@ -56,7 +56,7 @@
     <inceptionYear>2022</inceptionYear>
 
     <properties>
-        <bom.version>1.0.1</bom.version>
+        <bom.version>1.0.2</bom.version>
         <lang.version>1.0.0-SNAPSHOT</lang.version>
     </properties>
 
