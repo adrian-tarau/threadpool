@@ -2,10 +2,10 @@ package net.microfalx.threadpool;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 
 import static net.microfalx.lang.ArgumentUtils.*;
 
@@ -15,7 +15,7 @@ import static net.microfalx.lang.ArgumentUtils.*;
 public interface ThreadPool extends ScheduledExecutorService {
 
     /**
-     * Creates a thread pool with default naming scheme.
+     * Creates a thread pool with a default naming scheme.
      *
      * @return a non-null instance
      */
@@ -95,6 +95,34 @@ public interface ThreadPool extends ScheduledExecutorService {
     boolean isIdle();
 
     /**
+     * Changes the maximum number of threads allowed to be created and maintained by the pool.
+     *
+     * @param maximumSize a positive integer >= 1
+     */
+    void setMaximumSize(int maximumSize);
+
+    /**
+     * Returns a collection with running tasks.
+     *
+     * @return a non-null instance
+     */
+    Collection<?> getRunningTasks();
+
+    /**
+     * Returns a collection with pending tasks.
+     *
+     * @return a non-null instance
+     */
+    Collection<?> getPendingTasks();
+
+    /**
+     * Returns a collection with scheduled tasks.
+     *
+     * @return a non-null instance
+     */
+    Collection<?> getScheduledTasks();
+
+    /**
      * Returns metrics about this pool.
      *
      * @return a non-null instance
@@ -102,7 +130,7 @@ public interface ThreadPool extends ScheduledExecutorService {
     Metrics getMetrics();
 
     /**
-     * Options to control the thread pool
+     * Options for a thread pool.
      */
     interface Options {
 
@@ -149,7 +177,7 @@ public interface ThreadPool extends ScheduledExecutorService {
         Duration getMaximumReuseTime();
 
         /**
-         * Returns the handler of unexecutable tasks.
+         * Returns the handler of executable tasks.
          *
          * @return a non-null instance
          */
@@ -163,6 +191,20 @@ public interface ThreadPool extends ScheduledExecutorService {
         FailedHandler getFailedHandler();
 
         /**
+         * Returns an optional thread group.
+         *
+         * @return a non-null instance
+         */
+        Optional<String> getThreadGroup();
+
+        /**
+         * Returns an optional thread factory.
+         *
+         * @return a non-null instance
+         */
+        Optional<ThreadFactory> getThreadFactory();
+
+        /**
          * Returns the prefix used to generate thread names.
          * <p>
          * The name of the thread will be the prefix + a generated index from 1 to MAX SIZE.
@@ -172,11 +214,18 @@ public interface ThreadPool extends ScheduledExecutorService {
         String getNamePrefix();
 
         /**
-         * Returns weather the thread is a daemon thread.
+         * Returns weather the thread pool is running with daemon threads.
          *
          * @return <code>true</code> if daemon, <code>false</code> otherwise
          */
         boolean isDaemon();
+
+        /**
+         * Returns weather the thread pool is running with virtual threads.
+         *
+         * @return <code>true</code> if daemon, <code>false</code> otherwise
+         */
+        boolean isVirtual();
 
     }
 
@@ -216,7 +265,7 @@ public interface ThreadPool extends ScheduledExecutorService {
     interface ScheduleCallback {
 
         /**
-         * Returns whether  the task is a singleton.
+         * Returns whether the task is a singleton.
          * <p>
          * A singleton task ensures that only one task can exist in the queue at any moment in time.
          *
@@ -276,6 +325,21 @@ public interface ThreadPool extends ScheduledExecutorService {
     }
 
     /**
+     * A handler for tasks that cannot be executed by the thread pool due to limits in number of instances.
+     */
+    interface SingletonHandler {
+
+        /**
+         * Invoked whenever a scheduled task cannot be executed because it reached the number of maximum allowed
+         * instances.
+         *
+         * @param runnable the runnable task requested to be executed
+         * @param pool     the executor attempting to execute this task
+         */
+        void rejected(Runnable runnable, ThreadPool pool);
+    }
+
+    /**
      * An interface which provides metrics about a thread pool.
      */
     interface Metrics {
@@ -302,7 +366,7 @@ public interface ThreadPool extends ScheduledExecutorService {
         int getPendingTaskCount();
 
         /**
-         * Returns the number of tasks exeucted by the pool.
+         * Returns the number of tasks executed by the pool.
          *
          * @return a positive integer
          */
@@ -328,7 +392,6 @@ public interface ThreadPool extends ScheduledExecutorService {
          * @return a positive integer
          */
         int getDestroyedThreadCount();
-
     }
 
     /**
@@ -338,7 +401,6 @@ public interface ThreadPool extends ScheduledExecutorService {
 
         private final OptionsImpl options = new OptionsImpl();
         private BlockingQueue<TaskWrapper<?, ?>> queue = new ArrayBlockingQueue<>(options.getQueueSize());
-
         private Builder(String namePrefix) {
             requireNotEmpty(namePrefix);
             options.namePrefix = namePrefix;
@@ -384,7 +446,7 @@ public interface ThreadPool extends ScheduledExecutorService {
         /**
          * Changes the queue size (defaults to 100).
          * <p>
-         * Large queues are usually not common but the thread pool applies a high limit of 1,000,000 tasks.
+         * Large queues are usually not common, but the thread pool applies a high limit of 1,000,000 tasks.
          *
          * @param queueSize the new queue size, a value between 1 and 1,000,000
          * @return self
@@ -397,6 +459,19 @@ public interface ThreadPool extends ScheduledExecutorService {
         }
 
         /**
+         * Changes the thread factory.
+         * <p>
+         * If a custom thread factory is provided, some options do not apply anymore: thread naming, virtual or physical, etc
+         *
+         * @param threadFactory the thread factory
+         * @return self
+         */
+        public Builder threadFactory(ThreadFactory threadFactory) {
+            options.threadFactory = threadFactory;
+            return this;
+        }
+
+        /**
          * Changes the rejected task handled.
          *
          * @param handler the handler
@@ -405,6 +480,18 @@ public interface ThreadPool extends ScheduledExecutorService {
         public Builder rejectedHandler(RejectedHandler handler) {
             requireNonNull(handler);
             options.rejectedHandler = handler;
+            return this;
+        }
+
+        /**
+         * Changes the singleton task handled.
+         *
+         * @param handler the handler
+         * @return self
+         */
+        public Builder singletonHandler(SingletonHandler handler) {
+            requireNonNull(handler);
+            options.singletonHandler = handler;
             return this;
         }
 
@@ -441,6 +528,28 @@ public interface ThreadPool extends ScheduledExecutorService {
         public Builder scheduleCallback(ScheduleCallback callback) {
             requireNonNull(callback);
             options.scheduleCallbacks.add(callback);
+            return this;
+        }
+
+        /**
+         * Changes the daemon flag.
+         *
+         * @param daemon {@code true} to create daemon threads, {@code false} otherwise
+         * @return self
+         */
+        public Builder daemon(boolean daemon) {
+            options.daemon = daemon;
+            return this;
+        }
+
+        /**
+         * Changes the virtual threads flag.
+         *
+         * @param virtual {@code true} to use virtual threads, {@code false} otherwise
+         * @return self
+         */
+        public Builder virtual(boolean virtual) {
+            options.virtual = virtual;
             return this;
         }
 

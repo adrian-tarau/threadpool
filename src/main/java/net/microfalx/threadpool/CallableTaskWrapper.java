@@ -9,12 +9,11 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
     private final RunnableScheduledFuture<R> future;
     volatile long delay;
     volatile long interval;
-    volatile long time = System.nanoTime();
+    volatile long time;
     volatile R result;
 
     CallableTaskWrapper(ThreadPoolImpl threadPool, Callable<R> task, long delay, TimeUnit unit) {
         super(threadPool, task);
-
         this.delay = NANOSECONDS.convert(delay, unit);
         this.time = System.nanoTime() + this.delay;
         future = new ScheduledFutureWrapper<>(this);

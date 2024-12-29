@@ -1,5 +1,7 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.ExceptionUtils;
+
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 
 abstract class TaskWrapper<T, R> {
@@ -8,13 +10,12 @@ abstract class TaskWrapper<T, R> {
     private final T task;
 
     volatile Mode mode = Mode.SINGLE;
-    volatile long lastScheduled = System.nanoTime();
+    volatile long lastScheduled = System.currentTimeMillis();
     volatile long lastExecuted;
 
     TaskWrapper(ThreadPoolImpl threadPool, T task) {
         requireNonNull(threadPool);
         requireNonNull(task);
-
         this.threadPool = threadPool;
         this.task = task;
     }
@@ -23,12 +24,17 @@ abstract class TaskWrapper<T, R> {
         return task;
     }
 
-    R execute() throws Exception {
+    R execute() {
         beforeExecute();
         R result = null;
         try {
             result = doExecute();
+        } catch (Throwable e) {
+            threadPool.failedTask(this, e);
+            if (e instanceof InterruptedException ie) ExceptionUtils.rethrowInterruptedException(ie);
         } finally {
+            lastExecuted = System.currentTimeMillis();
+            threadPool.completeTask(this);
             afterExecute(result);
         }
         return result;
@@ -37,11 +43,11 @@ abstract class TaskWrapper<T, R> {
     abstract R doExecute() throws Exception;
 
     void beforeExecute() {
-
+        // empty by design
     }
 
     void afterExecute(R result) {
-
+        // empty by design
     }
 
     enum Mode {

@@ -21,7 +21,7 @@ class OptionsImplTest {
     void getDefaultOptions() {
         ThreadPool.Options options = threadPool.getOptions();
         assertNotNull(options);
-        assertEquals(10, options.getMaximumSize());
+        assertEquals(5, options.getMaximumSize());
         assertEquals(100, options.getQueueSize());
         assertEquals(ofSeconds(60), options.getKeepAliveTime());
         assertEquals(ofMinutes(15), options.getMaximumReuseTime());

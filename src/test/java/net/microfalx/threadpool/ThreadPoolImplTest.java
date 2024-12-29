@@ -28,8 +28,7 @@ class ThreadPoolImplTest {
 
     @BeforeEach
     void setup() {
-        pool = ThreadPool.builder("Test").build();
-        metrics = pool.getMetrics();
+        createPool(false);
     }
 
     @AfterEach
@@ -72,8 +71,18 @@ class ThreadPoolImplTest {
         assertEquals(5, metrics.getExecutedTaskCount());
 
         pool.resume();
+        assertFalse(pool.isPaused());
+        Thread.sleep(1000);
         await().atMost(ofSeconds(2))
                 .untilAsserted(() -> assertEquals(10, metrics.getExecutedTaskCount()));
+    }
+
+    @Test
+    void virtualThreads() {
+        createPool(true);
+        fireSingleRun(FAST_TASK, 5);
+        await().until(() -> pool.isIdle());
+        assertEquals(5, metrics.getExecutedTaskCount());
     }
 
     @Test
@@ -211,6 +220,11 @@ class ThreadPoolImplTest {
         pool.execute(new RunnableTask(50, new IOException("Failure")));
         assertTrue(countDown.await(4, TimeUnit.SECONDS));
         assertEquals(1, failureCounter.get());
+    }
+
+    private void createPool(boolean virtual) {
+        pool = ThreadPool.builder(virtual ? "Virtual" : "Test").virtual(virtual).build();
+        metrics = pool.getMetrics();
     }
 
     private void fireSingleRun(int executionTime, int count) {

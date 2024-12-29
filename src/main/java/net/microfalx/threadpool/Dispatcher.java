@@ -4,11 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static java.lang.System.nanoTime;
+import static java.util.Collections.unmodifiableCollection;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 
 class Dispatcher {
@@ -16,6 +17,7 @@ class Dispatcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(Dispatcher.class);
 
     private static final long STALE_THREAD_INTERVAL = 5_000_000_000L;
+    private static final long MAX_WAIT_BETWEEN_ITERATIONS = 10;
     private static final AtomicInteger SCHEDULER_THREAD_COUNTER = new AtomicInteger();
 
     private static final Dispatcher instance = new Dispatcher();
@@ -42,27 +44,24 @@ class Dispatcher {
 
     void register(ThreadPoolImpl threadPool) {
         requireNonNull(threadPool);
-
         threadPools.add(threadPool);
     }
 
     void unregister(ThreadPoolImpl threadPool) {
         requireNonNull(threadPool);
-
         threadPools.remove(threadPool);
     }
 
     Collection<ThreadPool> getThreadPools() {
-        return Collections.unmodifiableCollection(threadPools);
+        return unmodifiableCollection(threadPools);
     }
 
     void wakeUp(ThreadPoolImpl threadPool) {
+        threadPool.handleTasks();
         synchronized (awaitTasks) {
             awaitTasks.notifyAll();
         }
-        if (System.nanoTime() - thread.lastIteration > STALE_THREAD_INTERVAL) {
-            createThread();
-        }
+        if (nanoTime() - thread.lastIteration > STALE_THREAD_INTERVAL) createThread();
     }
 
     private void initialize() {
@@ -86,33 +85,27 @@ class Dispatcher {
         private volatile boolean stopped;
 
         ThreadImpl() {
-            setName("MicroFalx Dispatcher " + SCHEDULER_THREAD_COUNTER.incrementAndGet());
+            setName("Microfalx Dispatcher " + SCHEDULER_THREAD_COUNTER.incrementAndGet());
             setDaemon(true);
         }
 
-        private boolean handleTasks() {
-            boolean hasTasks = false;
+        private void handleTasks() {
             for (ThreadPoolImpl threadPool : threadPools) {
                 try {
-                    hasTasks |= threadPool.handleTasks();
+                    threadPool.handleTasks();
                 } catch (Exception e) {
                     LOGGER.error("Failed to handle next task for " + threadPool, e);
                 }
             }
-            return hasTasks;
         }
 
-        @SuppressWarnings("ResultOfMethodCallIgnored")
         private void loop() throws InterruptedException {
             while (!stopped) {
-                lastIteration = System.nanoTime();
-                boolean hasTasks = handleTasks();
-                if (!hasTasks) {
-                    synchronized (awaitTasks) {
-                        awaitTasks.wait(10);
-                    }
+                lastIteration = nanoTime();
+                handleTasks();
+                synchronized (awaitTasks) {
+                    awaitTasks.wait(MAX_WAIT_BETWEEN_ITERATIONS);
                 }
-
             }
         }
 

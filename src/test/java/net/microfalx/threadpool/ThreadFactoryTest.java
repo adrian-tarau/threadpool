@@ -8,39 +8,38 @@ import java.time.Duration;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 class ThreadFactoryTest {
 
     private ThreadFactory factory;
-    private ThreadPoolImpl threadPool;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
-    void setup() {
-        threadPool = Mockito.mock(ThreadPoolImpl.class);
-        factory = new ThreadFactory(threadPool, "Default");
-        when(threadPool.getIndex(any(Thread.class))).thenCallRealMethod();
-        ThreadPool.Options options = Mockito.mock(ThreadPool.Options.class);
-        factory.threadPool = threadPool;
-        when(threadPool.getOptions()).thenReturn(options);
+    void setup() throws InterruptedException {
+        ThreadPoolImpl threadPool = Mockito.mock(ThreadPoolImpl.class);
+        when(threadPool.getOptions()).thenReturn(new OptionsImpl());
+        when(threadPool.nextTask()).thenReturn(null);
+        factory = new ThreadFactory(threadPool);
     }
 
     @Test
     void createThread() throws Exception {
-        Thread thread = factory.createThread();
+        Thread thread = factory.createThread(() -> {
+        }, true);
         assertEquals("Default 1", thread.getName());
-        assertEquals(1, threadPool.getIndex(thread));
+        assertEquals(1, factory.getIndex(thread));
     }
 
     @Test
     void destroyThread() throws Exception {
-        ThreadImpl thread = factory.createThread();
-        assertFalse(thread.isStopped());
+        Thread thread = factory.createThread(() -> {
+        }, true);
         factory.destroyThread(thread);
-        await().atMost(Duration.ofSeconds(1)).until(thread::isStopped);
+        await().atMost(Duration.ofSeconds(10)).until(() -> {
+            System.gc();
+            return thread.isAlive();
+        });
     }
 
 }

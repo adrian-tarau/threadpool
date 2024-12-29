@@ -2,21 +2,29 @@ package net.microfalx.threadpool;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ThreadFactory;
 
 import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
+import static net.microfalx.lang.ArgumentUtils.requireBounded;
+import static net.microfalx.threadpool.ThreadPoolUtils.MAXIMUM_POOL_SIZE;
 
 class OptionsImpl implements ThreadPool.Options {
 
-    volatile int maximumSize = 10;
+    volatile int maximumSize = 5;
     Duration keepAliveTime = ofSeconds(60);
     Duration maximumReuseTime = ofMinutes(15);
-    String namePrefix;
-    boolean daemon;
+    ThreadFactory threadFactory;
+    String threadGroup;
+    String namePrefix = "Default";
+    boolean daemon = true;
+    boolean virtual = false;
     int queueSize = 100;
     ThreadPool.RejectedHandler rejectedHandler = new CallerRunsPolicy();
     ThreadPool.FailedHandler failureHandler = new LogFailedHandler();
+    ThreadPool.SingletonHandler singletonHandler;
     Collection<ThreadPool.ExecutionCallback> executionCallbacks = new CopyOnWriteArrayList<>();
     Collection<ThreadPool.ScheduleCallback> scheduleCallbacks = new CopyOnWriteArrayList<>();
 
@@ -27,6 +35,7 @@ class OptionsImpl implements ThreadPool.Options {
 
     @Override
     public void setMaximumSize(int maximumSize) {
+        requireBounded(maximumSize, 1, MAXIMUM_POOL_SIZE);
         this.maximumSize = maximumSize;
     }
 
@@ -45,6 +54,10 @@ class OptionsImpl implements ThreadPool.Options {
         return daemon;
     }
 
+    @Override
+    public boolean isVirtual() {
+        return virtual;
+    }
 
     @Override
     public Duration getKeepAliveTime() {
@@ -66,13 +79,21 @@ class OptionsImpl implements ThreadPool.Options {
         return failureHandler;
     }
 
+    @Override
+    public Optional<String> getThreadGroup() {
+        return Optional.ofNullable(threadGroup);
+    }
+
+    @Override
+    public Optional<ThreadFactory> getThreadFactory() {
+        return Optional.ofNullable(threadFactory);
+    }
+
     static class CallerRunsPolicy implements ThreadPool.RejectedHandler {
 
         @Override
         public void rejected(Runnable runnable, ThreadPool pool) {
-            if (!pool.isShutdown()) {
-                runnable.run();
-            }
+            if (!pool.isShutdown()) runnable.run();
         }
     }
 
