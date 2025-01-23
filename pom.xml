@@ -57,7 +57,7 @@
 
     <properties>
         <bom.version>1.0.7</bom.version>
-        <lang.version>0.8.1-SNAPSHOT</lang.version>
+        <lang.version>0.8.2-SNAPSHOT</lang.version>
     </properties>
 
     <developers>
