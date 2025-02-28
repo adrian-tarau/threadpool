@@ -1,5 +1,6 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.ThreadUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -13,8 +14,7 @@ import static org.mockito.Mockito.when;
 class ThreadFactoryTest {
 
     private ThreadFactory factory;
-
-    @SuppressWarnings("unchecked")
+    
     @BeforeEach
     void setup() throws InterruptedException {
         ThreadPoolImpl threadPool = Mockito.mock(ThreadPoolImpl.class);
@@ -27,13 +27,14 @@ class ThreadFactoryTest {
     void createThread() throws Exception {
         Thread thread = factory.createThread(() -> {
         }, true);
-        assertEquals("Default 1", thread.getName());
+        assertEquals("Default-1", thread.getName());
         assertEquals(1, factory.getIndex(thread));
     }
 
     @Test
     void destroyThread() throws Exception {
         Thread thread = factory.createThread(() -> {
+            ThreadUtils.sleepSeconds(1);
         }, true);
         factory.destroyThread(thread);
         await().atMost(Duration.ofSeconds(10)).until(() -> {

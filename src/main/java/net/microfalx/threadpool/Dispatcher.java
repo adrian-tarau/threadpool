@@ -43,13 +43,11 @@ class Dispatcher {
     }
 
     void register(ThreadPoolImpl threadPool) {
-        requireNonNull(threadPool);
-        threadPools.add(threadPool);
+        threadPools.add(requireNonNull(threadPool));
     }
 
     void unregister(ThreadPoolImpl threadPool) {
-        requireNonNull(threadPool);
-        threadPools.remove(threadPool);
+        threadPools.remove(requireNonNull(threadPool));
     }
 
     Collection<ThreadPool> getThreadPools() {

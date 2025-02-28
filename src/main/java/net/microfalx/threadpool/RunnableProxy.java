@@ -1,5 +1,7 @@
 package net.microfalx.threadpool;
 
+import java.util.StringJoiner;
+
 import static java.lang.System.currentTimeMillis;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.TimeUtils.millisSince;
@@ -20,6 +22,8 @@ class RunnableProxy implements Runnable {
     private volatile boolean running;
     private volatile boolean loop = true;
     private volatile boolean stopped;
+
+    static final ThreadLocal<ThreadPool> CURRENT_THREAD_POOL = new ThreadLocal<>();
 
     RunnableProxy(ThreadPoolImpl threadPool, TaskWrapper<?, ?> task) {
         requireNonNull(threadPool);
@@ -54,6 +58,7 @@ class RunnableProxy implements Runnable {
     }
 
     private void processTask() {
+        CURRENT_THREAD_POOL.set(threadPool);
         try {
             if (task == null) task = threadPool.nextTask();
             if (task != null) {
@@ -64,6 +69,7 @@ class RunnableProxy implements Runnable {
         } catch (InterruptedException e) {
             loop = false;
         } finally {
+            CURRENT_THREAD_POOL.remove();
             if (task != null) lastCompletion = currentTimeMillis();
             running = false;
             task = null;
@@ -78,4 +84,16 @@ class RunnableProxy implements Runnable {
         }
     }
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", RunnableProxy.class.getSimpleName() + "[", "]")
+                .add("threadPool=" + threadPool.getOptions().getNamePrefix())
+                .add("task=" + task)
+                .add("startTime=" + startTime)
+                .add("lastCompletion=" + lastCompletion)
+                .add("running=" + running)
+                .add("loop=" + loop)
+                .add("stopped=" + stopped)
+                .toString();
+    }
 }

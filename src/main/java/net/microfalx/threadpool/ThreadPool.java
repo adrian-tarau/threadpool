@@ -15,6 +15,26 @@ import static net.microfalx.lang.ArgumentUtils.*;
 public interface ThreadPool extends ScheduledExecutorService {
 
     /**
+     * Returns the default thread pool.
+     *
+     * @return a non-null instance
+     */
+    static ThreadPool get() {
+        return ThreadPoolUtils.getDefault();
+    }
+
+    /**
+     * Returns the thread pool executing the current task.
+     * <p>
+     * If the current task is not executed by a thread pool, the thread pool is not available
+     *
+     * @return the thread pool
+     */
+    static Optional<ThreadPool> current() {
+        return Optional.ofNullable(RunnableProxy.CURRENT_THREAD_POOL.get());
+    }
+
+    /**
      * Creates a thread pool with a default naming scheme.
      *
      * @return a non-null instance
@@ -30,7 +50,7 @@ public interface ThreadPool extends ScheduledExecutorService {
      * @return a non-null instance
      */
     static ThreadPool create(String namePrefix) {
-        return new Builder(namePrefix).maximumSize(Runtime.getRuntime().availableProcessors() * 2).build();
+        return new Builder(namePrefix).maximumSize(Math.max(2, Runtime.getRuntime().availableProcessors() * 2)).build();
     }
 
     /**
@@ -41,6 +61,15 @@ public interface ThreadPool extends ScheduledExecutorService {
      */
     static Builder builder(String namePrefix) {
         return new Builder(namePrefix);
+    }
+
+    /**
+     * Returns all registered thread pools.
+     *
+     * @return a non-null instance
+     */
+    static Collection<ThreadPool> list() {
+        return Dispatcher.getInstance().getThreadPools();
     }
 
     /**
@@ -121,6 +150,13 @@ public interface ThreadPool extends ScheduledExecutorService {
      * @return a non-null instance
      */
     Collection<?> getScheduledTasks();
+
+    /**
+     * Returns the threads supporting this thread pool.
+     *
+     * @return a non-null instance
+     */
+    Collection<Thread> getThreads();
 
     /**
      * Returns metrics about this pool.
@@ -401,6 +437,7 @@ public interface ThreadPool extends ScheduledExecutorService {
 
         private final OptionsImpl options = new OptionsImpl();
         private BlockingQueue<TaskWrapper<?, ?>> queue = new ArrayBlockingQueue<>(options.getQueueSize());
+
         private Builder(String namePrefix) {
             requireNotEmpty(namePrefix);
             options.namePrefix = namePrefix;

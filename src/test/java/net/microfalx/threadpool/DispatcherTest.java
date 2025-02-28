@@ -14,14 +14,13 @@ class DispatcherTest {
 
     private Dispatcher dispatcher;
     private ThreadPoolImpl threadPool;
-    private AtomicInteger executionCount = new AtomicInteger();
+    private final AtomicInteger executionCount = new AtomicInteger();
 
     @BeforeEach
     void setup() {
         dispatcher = new Dispatcher();
         threadPool = (ThreadPoolImpl) ThreadPool.create("Test");
         executionCount.set(0);
-
         dispatcher.register(threadPool);
     }
 
@@ -36,14 +35,14 @@ class DispatcherTest {
 
     @Test
     public void handleRunnable() {
-        threadPool.execute(() -> executionCount.incrementAndGet());
+        threadPool.execute(executionCount::incrementAndGet);
         await().untilAsserted(() -> assertEquals(1, executionCount.get()));
     }
 
     @Test
     public void handleSchedulingStorm() throws Exception {
         for (int i = 0; i < MAX_EXECUTED; i++) {
-            threadPool.execute(() -> executionCount.incrementAndGet());
+            threadPool.execute(executionCount::incrementAndGet);
         }
         await().untilAsserted(() -> assertEquals(MAX_EXECUTED, executionCount.get()));
     }

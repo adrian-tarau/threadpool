@@ -3,10 +3,12 @@ package net.microfalx.threadpool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.util.Collections.unmodifiableCollection;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 
 class ThreadFactory implements java.util.concurrent.ThreadFactory {
@@ -44,12 +46,16 @@ class ThreadFactory implements java.util.concurrent.ThreadFactory {
         return createThread(r, false);
     }
 
+    Collection<Thread> getThreads() {
+        return unmodifiableCollection(indexesByThread.keySet());
+    }
+
     Thread createThread(Runnable r, boolean register) {
         synchronized (indexesByThread) {
             if (register && isMaxedOut()) return null;
             int index = register ? getNextAvailableIndex() : threadNumber.getAndIncrement();
-            String name = namePrefix + " " + index;
-            LOGGER.debug("Create thread, name " + name);
+            String name = namePrefix + "-" + index;
+            LOGGER.debug("Create thread, name '{}'", name);
             Thread thread = createThread(r, name, register);
             if (register) {
                 threadByIndex.put(index, thread);

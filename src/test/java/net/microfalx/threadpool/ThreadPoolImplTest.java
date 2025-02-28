@@ -37,10 +37,15 @@ class ThreadPoolImplTest {
     }
 
     @Test
+    void getDefault() {
+        assertNotNull(ThreadPool.get());
+    }
+
+    @Test
     void shutdown() {
         pool.shutdown();
         assertTrue(pool.isShutdown());
-        assertEquals(0, Dispatcher.getInstance().getThreadPools().size());
+        assertEquals(0, ThreadPool.list().size());
     }
 
     @Test
@@ -48,7 +53,16 @@ class ThreadPoolImplTest {
         List<Runnable> pending = pool.shutdownNow();
         assertTrue(pool.isShutdown());
         assertEquals(0, pending.size());
-        assertEquals(0, Dispatcher.getInstance().getThreadPools().size());
+        assertEquals(0, ThreadPool.list().size());
+    }
+
+    @Test
+    void countPools() {
+        assertEquals(1, ThreadPool.list().size());
+        ThreadPool pool2 = ThreadPool.create("pool2");
+        assertEquals(2, ThreadPool.list().size());
+        pool2.shutdown();
+        assertEquals(1, ThreadPool.list().size());
     }
 
     @Test

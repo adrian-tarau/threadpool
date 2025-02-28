@@ -226,6 +226,11 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     @Override
+    public Collection<Thread> getThreads() {
+        return factory.getThreads();
+    }
+
+    @Override
     public Metrics getMetrics() {
         return metrics;
     }
@@ -244,7 +249,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     /**
      * Called from a pooled thread to mark the execution of the task completed.
      *
-     * @param task   the task
+     * @param task the task
      */
     void completeTask(TaskWrapper<?, ?> task) {
         executedTaskCount.incrementAndGet();

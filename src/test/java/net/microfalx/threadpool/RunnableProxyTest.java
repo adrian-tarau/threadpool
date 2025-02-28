@@ -9,8 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -57,6 +56,24 @@ class RunnableProxyTest {
         proxy = new RunnableProxy(threadPool, new RunnableTaskWrapper(threadPool, new RunnableTest(true, true)));
         proxy.run();
         verify(threadPool).failedTask(any(TaskWrapper.class), any(Throwable.class));
+    }
+
+    @Test
+    void checkIfThreadPoolAttached() {
+        CheckPoolRunnableTest runnable = new CheckPoolRunnableTest();
+        proxy = new RunnableProxy(threadPool, new RunnableTaskWrapper(threadPool, runnable));
+        proxy.run();
+        assertNotNull(runnable.threadPool);
+    }
+
+    static class CheckPoolRunnableTest implements Runnable {
+
+        private volatile ThreadPool threadPool;
+
+        @Override
+        public void run() {
+            threadPool = ThreadPool.current().orElse(null);
+        }
     }
 
     static class RunnableTest implements Runnable {
