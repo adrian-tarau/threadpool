@@ -1,8 +1,11 @@
 package net.microfalx.threadpool;
 
+import java.util.StringJoiner;
 import java.util.concurrent.*;
 
+import static java.time.Duration.ofNanos;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static net.microfalx.lang.FormatterUtils.formatDuration;
 
 class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Delayed, Callable<R> {
 
@@ -67,6 +70,12 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
         return future;
     }
 
+    @Override
+    void updateToString(StringJoiner joiner) {
+        joiner.add("delay=" + formatDuration(ofNanos(delay)))
+                .add("interval=" + formatDuration(ofNanos(interval)));
+    }
+
     class ScheduledFutureWrapper<V> extends FutureTask<V> implements RunnableScheduledFuture<V> {
 
         public ScheduledFutureWrapper(Callable<V> callable) {
@@ -85,7 +94,16 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
 
         @Override
         public boolean isPeriodic() {
-            return false;
+            return CallableTaskWrapper.this.isPeriodic();
+        }
+
+        @Override
+        public void run() {
+            if (!isPeriodic())
+                super.run();
+            else {
+                super.runAndReset();
+            }
         }
     }
 }

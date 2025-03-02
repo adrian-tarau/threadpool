@@ -140,8 +140,8 @@ class ThreadPoolImplTest {
         pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_DELAY));
         pool.scheduleWithFixedDelay(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 2);
-        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(2);
+        await().until(() -> metrics.getExecutedTaskCount() >= 10);
+        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
     }
 
     @Test
@@ -149,8 +149,8 @@ class ThreadPoolImplTest {
         pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_RATE));
         pool.scheduleAtFixedRate(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 2);
-        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(2);
+        await().until(() -> metrics.getExecutedTaskCount() >= 10);
+        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
     }
 
     @Test

@@ -1,8 +1,12 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.ExceptionUtils;
 
+import java.util.StringJoiner;
+
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.TimeUtils.toLocalDateTime;
 
 abstract class TaskWrapper<T, R> {
 
@@ -48,6 +52,21 @@ abstract class TaskWrapper<T, R> {
 
     void afterExecute(R result) {
         // empty by design
+    }
+
+    void updateToString(StringJoiner joiner) {
+    }
+
+    @Override
+    public String toString() {
+        StringJoiner joiner = new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
+                .add("threadPool=" + threadPool.getOptions().getNamePrefix())
+                .add("task=" + ClassUtils.getName(task))
+                .add("mode=" + mode)
+                .add("lastScheduled=" + toLocalDateTime(lastScheduled))
+                .add("lastExecuted=" + toLocalDateTime(lastExecuted));
+        updateToString(joiner);
+        return joiner.toString();
     }
 
     enum Mode {
