@@ -7,7 +7,7 @@ import java.time.Duration;
  * <p>
  * The thread pool will use the strategy, initial delay and the interval provided by the task.
  */
-public interface ScheduledTask {
+public interface ScheduledTask extends Task {
 
     /**
      * Returns the scheduling strategy.

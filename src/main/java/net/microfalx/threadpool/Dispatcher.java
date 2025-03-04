@@ -43,6 +43,9 @@ class Dispatcher {
     }
 
     void register(ThreadPoolImpl threadPool) {
+        if (threadPools.contains(threadPool)) {
+            throw new IllegalArgumentException("A thread pool with identifier '" + threadPool.getId() + "' already exists");
+        }
         threadPools.add(requireNonNull(threadPool));
     }
 

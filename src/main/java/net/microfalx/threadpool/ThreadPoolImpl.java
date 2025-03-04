@@ -1,21 +1,26 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.ThreadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static java.lang.Long.MAX_VALUE;
+import static java.util.Collections.unmodifiableCollection;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.microfalx.lang.ArgumentUtils.requireBounded;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.StringUtils.toIdentifier;
 
 /**
  * Thread pool implementation.
@@ -29,7 +34,9 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     private final DelayQueue<CallableTaskWrapper<?>> delayedTaskQueue;
     private final Collection<TaskWrapper<?, ?>> running = new CopyOnWriteArrayList<>();
     private final Collection<TaskWrapper<?, ?>> scheduled = new CopyOnWriteArrayList<>();
+    private final Queue<TaskDescriptor> completed = new ArrayBlockingQueue<>(500);
     private final Map<Class<?>, Set<Object>> singletonPermits = new ConcurrentHashMap<>();
+    private final String id;
     private final OptionsImpl options;
     private final ThreadFactory factory;
     private final Dispatcher dispatcher;
@@ -39,6 +46,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     private final Metrics metrics = new MetricsImpl();
 
     private final AtomicLong executedTaskCount = new AtomicLong();
+    private final AtomicInteger failedTaskCount = new AtomicInteger();
     private final AtomicBoolean shutdown = new AtomicBoolean();
     private final AtomicBoolean terminated = new AtomicBoolean();
     private final AtomicBoolean suspended = new AtomicBoolean();
@@ -48,12 +56,23 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireNonNull(taskQueue);
         requireNonNull(options);
         this.taskQueue = taskQueue;
+        this.id = toIdentifier(options.namePrefix);
         this.options = options;
         this.factory = new ThreadFactory(this);
         this.dispatcher = Dispatcher.getInstance();
         this.delayedTaskQueue = new DelayQueue<>();
         this.extraTaskQueue = new LinkedBlockingQueue<>();
         this.dispatcher.register(this);
+    }
+
+    @Override
+    public String getId() {
+        return id;
+    }
+
+    @Override
+    public String getName() {
+        return options.getNamePrefix();
     }
 
     @Override
@@ -153,8 +172,6 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
             } else {
                 if (!taskQueue.offer(new RunnableTaskWrapper(this, task))) reject(task);
             }
-        } else {
-
         }
         dispatcher.wakeUp(this);
     }
@@ -195,6 +212,17 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, Duration initialDelay, Duration period) {
+        requireNonNull(task);
+        requireNonNull(initialDelay);
+        requireNonNull(period);
+        requireBounded(initialDelay.toMillis(), 0, MAX_VALUE);
+        requireBounded(period.toMillis(), 1, MAX_VALUE);
+        checkIfShuttingDown(task);
+        return scheduleAtFixedRate(task, initialDelay.toMillis(), period.toMillis(), MILLISECONDS);
+    }
+
+    @Override
     public ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, long initialDelay, long delay, TimeUnit unit) {
         requireNonNull(task);
         requireNonNull(unit);
@@ -208,21 +236,37 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     @Override
-    public Collection<?> getRunningTasks() {
-        return running.stream().map(TaskWrapper::getTask).toList();
+    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, Duration initialDelay, Duration delay) {
+        requireNonNull(task);
+        requireNonNull(initialDelay);
+        requireNonNull(delay);
+        requireBounded(initialDelay.toMillis(), 0, MAX_VALUE);
+        requireBounded(delay.toMillis(), 0, MAX_VALUE);
+        checkIfShuttingDown(task);
+        return scheduleWithFixedDelay(task, initialDelay.toMillis(), delay.toMillis(), MILLISECONDS);
     }
 
     @Override
-    public Collection<?> getPendingTasks() {
-        Collection<Object> pending = new ArrayList<>();
-        pending.addAll(taskQueue.stream().map(TaskWrapper::getTask).toList());
-        pending.addAll(extraTaskQueue.stream().map(TaskWrapper::getTask).toList());
+    public Collection<TaskDescriptor> getRunningTasks() {
+        return running.stream().map(TaskDescriptor.class::cast).toList();
+    }
+
+    @Override
+    public Collection<TaskDescriptor> getPendingTasks() {
+        Collection<TaskDescriptor> pending = new ArrayList<>();
+        pending.addAll(taskQueue.stream().map(TaskDescriptor.class::cast).toList());
+        pending.addAll(extraTaskQueue.stream().map(TaskDescriptor.class::cast).toList());
         return pending;
     }
 
     @Override
-    public Collection<?> getScheduledTasks() {
-        return scheduled.stream().map(TaskWrapper::getTask).toList();
+    public Collection<TaskDescriptor> getScheduledTasks() {
+        return scheduled.stream().map(TaskDescriptor.class::cast).toList();
+    }
+
+    @Override
+    public Collection<TaskDescriptor> getCompletedTasks() {
+        return unmodifiableCollection(completed);
     }
 
     @Override
@@ -233,6 +277,18 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     @Override
     public Metrics getMetrics() {
         return metrics;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ThreadPoolImpl that)) return false;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 
     /**
@@ -259,6 +315,12 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         }
         updateTask(task);
         tryTerminate();
+        DetachedTaskDescriptor completedTask = new DetachedTaskDescriptor(this, task);
+        for (int i = 0; i < 10; i++) {
+            if (completed.offer(completedTask)) break;
+            completed.poll();
+            ThreadUtils.interrupt();
+        }
     }
 
     /**
@@ -280,9 +342,8 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
      * @param throwable the exception
      */
     void failedTask(TaskWrapper<?, ?> task, Throwable throwable) {
-        if (task instanceof RunnableTaskWrapper) {
-            options.getFailedHandler().failed(((RunnableTaskWrapper) task).getTask(), this, throwable);
-        }
+        failedTaskCount.incrementAndGet();
+        options.getFailedHandler().failed(this, Thread.currentThread(), throwable, task.unwrapTask());
     }
 
     /**
@@ -354,7 +415,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     private void reject(Runnable runnable) {
-        options.getRejectedHandler().rejected(runnable, this);
+        options.getRejectedHandler().rejected(this, runnable);
     }
 
     private boolean isQueueEmpty() {
@@ -395,6 +456,11 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         @Override
         public int getPendingTaskCount() {
             return taskQueue.size() + extraTaskQueue.size();
+        }
+
+        @Override
+        public int getFailedTaskCount() {
+            return failedTaskCount.get();
         }
 
         @Override

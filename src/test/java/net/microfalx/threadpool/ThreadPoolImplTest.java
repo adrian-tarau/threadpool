@@ -206,7 +206,7 @@ class ThreadPoolImplTest {
         pool = ThreadPool.builder("Test")
                 .rejectedHandler((runnable, pool1) -> {
                     failureCounter.incrementAndGet();
-                    runnable.run();
+                    ((Runnable) runnable).run();
                 })
                 .build();
         int count = pool.getOptions().getMaximumSize() + pool.getOptions().getQueueSize();
@@ -228,7 +228,7 @@ class ThreadPoolImplTest {
     void executeWithFailureCallback() throws InterruptedException {
         AtomicInteger failureCounter = new AtomicInteger();
         pool = ThreadPool.builder("Test")
-                .failureHandler((runnable, pool1, throwable) -> failureCounter.incrementAndGet())
+                .failureHandler((pool, thread, throwable, task) -> failureCounter.incrementAndGet())
                 .build();
         countDown = new CountDownLatch(1);
         pool.execute(new RunnableTask(50, new IOException("Failure")));
@@ -236,8 +236,14 @@ class ThreadPoolImplTest {
         assertEquals(1, failureCounter.get());
     }
 
+    @Test
+    void getCompletedTasks() {
+        pool.execute(new RunnableTask(50, null));
+        await().until(() -> !pool.getCompletedTasks().isEmpty());
+    }
+
     private void createPool(boolean virtual) {
-        pool = ThreadPool.builder(virtual ? "Virtual" : "Test").virtual(virtual).build();
+        pool = ThreadPool.builder(virtual ? "Virtual" : "Native").virtual(virtual).build();
         metrics = pool.getMetrics();
     }
 

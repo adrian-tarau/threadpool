@@ -1,5 +1,8 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.Identifiable;
+import net.microfalx.lang.Nameable;
+
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collection;
@@ -12,7 +15,7 @@ import static net.microfalx.lang.ArgumentUtils.*;
 /**
  * A thread pool abstraction.
  */
-public interface ThreadPool extends ScheduledExecutorService {
+public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExecutorService {
 
     /**
      * Returns the default thread pool.
@@ -135,21 +138,28 @@ public interface ThreadPool extends ScheduledExecutorService {
      *
      * @return a non-null instance
      */
-    Collection<?> getRunningTasks();
+    Collection<TaskDescriptor> getRunningTasks();
 
     /**
      * Returns a collection with pending tasks.
      *
      * @return a non-null instance
      */
-    Collection<?> getPendingTasks();
+    Collection<TaskDescriptor> getPendingTasks();
 
     /**
      * Returns a collection with scheduled tasks.
      *
      * @return a non-null instance
      */
-    Collection<?> getScheduledTasks();
+    Collection<TaskDescriptor> getScheduledTasks();
+
+    /**
+     * Returns a collection with completed tasks (up to a maximum configurable size).
+     *
+     * @return a non-null instance
+     */
+    Collection<TaskDescriptor> getCompletedTasks();
 
     /**
      * Returns the threads supporting this thread pool.
@@ -164,6 +174,84 @@ public interface ThreadPool extends ScheduledExecutorService {
      * @return a non-null instance
      */
     Metrics getMetrics();
+
+    /**
+     * Submits a periodic action that becomes enabled first after the
+     * given initial delay, and subsequently with the given period;
+     * that is, executions will commence after
+     * {@code initialDelay}, then {@code initialDelay + period}, then
+     * {@code initialDelay + 2 * period}, and so on.
+     *
+     * <p>The sequence of task executions continues indefinitely until
+     * one of the following exceptional completions occur:
+     * <ul>
+     * <li>The task is {@linkplain Future#cancel explicitly cancelled}
+     * via the returned future.
+     * <li>The executor terminates, also resulting in task cancellation.
+     * <li>An execution of the task throws an exception.  In this case
+     * calling {@link Future#get() get} on the returned future will throw
+     * {@link ExecutionException}, holding the exception as its cause.
+     * </ul>
+     * Subsequent executions are suppressed.  Subsequent calls to
+     * {@link Future#isDone isDone()} on the returned future will
+     * return {@code true}.
+     *
+     * <p>If any execution of this task takes longer than its period, then
+     * subsequent executions may start late, but will not concurrently
+     * execute.
+     *
+     * @param task      the task to execute
+     * @param initialDelay the time to delay first execution
+     * @param period       the period between successive executions
+     * @return a ScheduledFuture representing pending completion of
+     * the series of repeated tasks.  The future's {@link
+     * Future#get() get()} method will never return normally,
+     * and will throw an exception upon task cancellation or
+     * abnormal termination of a task execution.
+     * @throws RejectedExecutionException if the task cannot be
+     *                                    scheduled for execution
+     * @throws NullPointerException       if command or unit is null
+     * @throws IllegalArgumentException   if period less than or equal to zero
+     * @see #scheduleAtFixedRate(Runnable, long, long, TimeUnit)
+     */
+    ScheduledFuture<?> scheduleAtFixedRate(Runnable task, Duration initialDelay, Duration period);
+
+    /**
+     * Submits a periodic action that becomes enabled first after the
+     * given initial delay, and subsequently with the given delay
+     * between the termination of one execution and the commencement of
+     * the next.
+     *
+     * <p>The sequence of task executions continues indefinitely until
+     * one of the following exceptional completions occur:
+     * <ul>
+     * <li>The task is {@linkplain Future#cancel explicitly cancelled}
+     * via the returned future.
+     * <li>The executor terminates, also resulting in task cancellation.
+     * <li>An execution of the task throws an exception.  In this case
+     * calling {@link Future#get() get} on the returned future will throw
+     * {@link ExecutionException}, holding the exception as its cause.
+     * </ul>
+     * Subsequent executions are suppressed.  Subsequent calls to
+     * {@link Future#isDone isDone()} on the returned future will
+     * return {@code true}.
+     *
+     * @param task      the task to execute
+     * @param initialDelay the time to delay first execution
+     * @param delay        the delay between the termination of one
+     *                     execution and the commencement of the next
+     * @return a ScheduledFuture representing pending completion of
+     * the series of repeated tasks.  The future's {@link
+     * Future#get() get()} method will never return normally,
+     * and will throw an exception upon task cancellation or
+     * abnormal termination of a task execution.
+     * @throws RejectedExecutionException if the task cannot be
+     *                                    scheduled for execution
+     * @throws NullPointerException       if command or unit is null
+     * @throws IllegalArgumentException   if delay less than or equal to zero
+     * @see #scheduleWithFixedDelay(Runnable, long, long, TimeUnit)
+     */
+    ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, Duration initialDelay, Duration delay);
 
     /**
      * Options for a thread pool.
@@ -334,11 +422,12 @@ public interface ThreadPool extends ScheduledExecutorService {
         /**
          * Invoked whenever a scheduled task fails be executed.
          *
-         * @param runnable  the runnable
          * @param pool      the executor attempting to execute this task
+         * @param thread      the thread attempting to execute this task
          * @param throwable the exception
+         * @param task     the task attempted to be executed
          */
-        void failed(Runnable runnable, ThreadPool pool, Throwable throwable);
+        void failed(ThreadPool pool, Thread thread, Throwable throwable, Object task);
     }
 
     /**
@@ -353,11 +442,11 @@ public interface ThreadPool extends ScheduledExecutorService {
          * an unchecked {@link RejectedExecutionException}, which will be
          * propagated to the caller of {@code execute}.
          *
-         * @param runnable the runnable task requested to be executed
          * @param pool     the executor attempting to execute this task
+         * @param task     the task attempted to be executed
          * @throws RejectedExecutionException if there is no remedy
          */
-        void rejected(Runnable runnable, ThreadPool pool);
+        void rejected(ThreadPool pool, Object task);
     }
 
     /**
@@ -400,6 +489,13 @@ public interface ThreadPool extends ScheduledExecutorService {
          * @return a positive integer
          */
         int getPendingTaskCount();
+
+        /**
+         * Returns the number of tasks which have ended into a failure.
+         *
+         * @return a positive integer
+         */
+        int getFailedTaskCount();
 
         /**
          * Returns the number of tasks executed by the pool.

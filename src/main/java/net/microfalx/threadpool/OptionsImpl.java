@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
 import static java.time.Duration.ofMinutes;
@@ -23,7 +24,7 @@ class OptionsImpl implements ThreadPool.Options {
     boolean virtual = false;
     int queueSize = 100;
     ThreadPool.RejectedHandler rejectedHandler = new CallerRunsPolicy();
-    ThreadPool.FailedHandler failureHandler = new LogFailedHandler();
+    ThreadPool.FailedHandler failureHandler = new DefaultFailedHandler();
     ThreadPool.SingletonHandler singletonHandler;
     Collection<ThreadPool.ExecutionCallback> executionCallbacks = new CopyOnWriteArrayList<>();
     Collection<ThreadPool.ScheduleCallback> scheduleCallbacks = new CopyOnWriteArrayList<>();
@@ -51,7 +52,7 @@ class OptionsImpl implements ThreadPool.Options {
 
     @Override
     public boolean isDaemon() {
-        return daemon;
+        return virtual || daemon;
     }
 
     @Override
@@ -92,16 +93,14 @@ class OptionsImpl implements ThreadPool.Options {
     static class CallerRunsPolicy implements ThreadPool.RejectedHandler {
 
         @Override
-        public void rejected(Runnable runnable, ThreadPool pool) {
-            if (!pool.isShutdown()) runnable.run();
-        }
-    }
-
-    static class LogFailedHandler implements ThreadPool.FailedHandler {
-
-        @Override
-        public void failed(Runnable runnable, ThreadPool pool, Throwable throwable) {
-            ThreadPoolImpl.LOGGER.error("Received an exception during execution of task " + runnable + " in thread pool " + pool.getOptions().getNamePrefix(), throwable);
+        public void rejected(ThreadPool pool, Object task) {
+            if (!pool.isShutdown()) {
+                if (task instanceof Runnable runnable) {
+                    runnable.run();
+                } else {
+                    throw new RejectedExecutionException();
+                }
+            }
         }
 
     }

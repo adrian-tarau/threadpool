@@ -1,5 +1,6 @@
 package net.microfalx.threadpool;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,11 @@ class ThreadPoolUtilsTest {
     void getCarrierPlatformThreadStarted() {
         Thread thread = Thread.ofVirtual().start(this::doSomething);
         assertNotNull(ThreadPoolUtils.getCarrier(thread));
+    }
+
+    @Test
+    void getThreads() {
+        Assertions.assertThat(ThreadPoolUtils.getThreads().length).isGreaterThan(2);
     }
 
     private void doSomething() {

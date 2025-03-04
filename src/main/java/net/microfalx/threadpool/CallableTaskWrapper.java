@@ -1,5 +1,6 @@
 package net.microfalx.threadpool;
 
+import java.time.Duration;
 import java.util.StringJoiner;
 import java.util.concurrent.*;
 
@@ -7,7 +8,7 @@ import static java.time.Duration.ofNanos;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static net.microfalx.lang.FormatterUtils.formatDuration;
 
-class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Delayed, Callable<R> {
+class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Delayed, Callable<R>, ScheduledTask {
 
     private final RunnableScheduledFuture<R> future;
     volatile long delay;
@@ -34,6 +35,26 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
     }
 
     @Override
+    public Strategy getStrategy() {
+        switch (mode) {
+            case FIXED_DELAY:
+                return Strategy.FIXED_DELAY;
+            default:
+                return Strategy.FIXED_RATE;
+        }
+    }
+
+    @Override
+    public Duration getInitialDelay() {
+        return Duration.ofNanos(delay);
+    }
+
+    @Override
+    public Duration getInterval() {
+        return Duration.ofNanos(interval);
+    }
+
+    @Override
     public int compareTo(Delayed o) {
         return Long.compare(delay, ((CallableTaskWrapper<?>) o).delay);
     }
@@ -44,7 +65,7 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
         return result;
     }
 
-    boolean isPeriodic() {
+    public boolean isPeriodic() {
         return interval > 0;
     }
 
