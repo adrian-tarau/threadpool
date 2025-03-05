@@ -1,6 +1,6 @@
 package net.microfalx.threadpool;
 
-class RunnableTaskWrapper extends TaskWrapper<Runnable, Object> {
+final class RunnableTaskWrapper extends TaskWrapper<Runnable, Object> {
 
     RunnableTaskWrapper(ThreadPoolImpl threadPool, Runnable task) {
         super(threadPool, task);

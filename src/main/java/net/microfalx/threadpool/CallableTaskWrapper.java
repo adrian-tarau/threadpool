@@ -8,7 +8,7 @@ import static java.time.Duration.ofNanos;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static net.microfalx.lang.FormatterUtils.formatDuration;
 
-class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Delayed, Callable<R>, ScheduledTask {
+final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Delayed, Callable<R>, ScheduledTask {
 
     private final RunnableScheduledFuture<R> future;
     volatile long delay;
@@ -61,8 +61,7 @@ class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implements Dela
 
     @Override
     public R call() throws Exception {
-        result = getTask().call();
-        return result;
+        return doExecute();
     }
 
     public boolean isPeriodic() {

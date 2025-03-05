@@ -2,7 +2,6 @@ package net.microfalx.threadpool;
 
 import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.Descriptable;
-import net.microfalx.lang.ExceptionUtils;
 import net.microfalx.lang.Nameable;
 import net.microfalx.metrics.Metrics;
 
@@ -105,6 +104,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
         return task;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     R execute() {
         beforeExecute();
         this.thread = Thread.currentThread();
@@ -116,7 +116,6 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
         } catch (Throwable e) {
             throwable = e;
             threadPool.failedTask(this, e);
-            if (e instanceof InterruptedException ie) ExceptionUtils.rethrowInterruptedException(ie);
         } finally {
             this.thread = null;
             duration = ofNanos(System.nanoTime() - start);
@@ -138,6 +137,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     }
 
     void updateToString(StringJoiner joiner) {
+        // empty by design
     }
 
     @Override
