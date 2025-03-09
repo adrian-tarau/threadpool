@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DispatcherTest {
 
     private static final int MAX_EXECUTED = 10_000;
+    private static final AtomicInteger COUNTER = new AtomicInteger(1);
 
     private Dispatcher dispatcher;
     private ThreadPoolImpl threadPool;
@@ -19,7 +20,7 @@ class DispatcherTest {
     @BeforeEach
     void setup() {
         dispatcher = new Dispatcher();
-        threadPool = (ThreadPoolImpl) ThreadPool.create("Test");
+        threadPool = (ThreadPoolImpl) ThreadPool.create("Dispatcher" + COUNTER.getAndIncrement());
         executionCount.set(0);
         dispatcher.register(threadPool);
     }

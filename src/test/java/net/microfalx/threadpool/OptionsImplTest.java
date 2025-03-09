@@ -3,6 +3,8 @@ package net.microfalx.threadpool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,11 +12,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class OptionsImplTest {
 
+    private static final AtomicInteger COUNTER = new AtomicInteger(1);
+
     private ThreadPool threadPool;
 
     @BeforeEach
     void setup() {
-        threadPool = ThreadPool.builder("Test").build();
+        threadPool = ThreadPool.builder("Options" + COUNTER.getAndIncrement()).build();
     }
 
     @Test

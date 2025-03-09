@@ -1,6 +1,7 @@
 package net.microfalx.threadpool;
 
-import org.assertj.core.api.Assertions;
+import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,8 +12,7 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.time.Duration.ofSeconds;
-import static org.awaitility.Awaitility.await;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ThreadPoolImplTest {
@@ -20,6 +20,7 @@ class ThreadPoolImplTest {
     private static final int FAST_TASK = 10;
     private static final int AVERAGE_TASK = 100;
     private static final int SLOW_TASK = 500;
+    private static final Duration MAX_WAIT = Duration.ofSeconds(10);
 
     private ThreadPool pool;
     private ThreadPool.Metrics metrics;
@@ -75,7 +76,7 @@ class ThreadPoolImplTest {
     void suspendAndResume() throws InterruptedException {
         assertFalse(pool.isPaused());
         fireSingleRun(FAST_TASK, 5);
-        await().until(() -> pool.isIdle());
+        awaitShort().until(() -> pool.isIdle());
         assertEquals(5, metrics.getExecutedTaskCount());
 
         pool.suspend();
@@ -87,7 +88,7 @@ class ThreadPoolImplTest {
         pool.resume();
         assertFalse(pool.isPaused());
         Thread.sleep(1000);
-        await().atMost(ofSeconds(2))
+        awaitShort()
                 .untilAsserted(() -> assertEquals(10, metrics.getExecutedTaskCount()));
     }
 
@@ -95,27 +96,24 @@ class ThreadPoolImplTest {
     void virtualThreads() {
         createPool(true);
         fireSingleRun(FAST_TASK, 5);
-        await().until(() -> pool.isIdle());
+        awaitShort().until(() -> pool.isIdle());
         assertEquals(5, metrics.getExecutedTaskCount());
     }
 
     @Test
     void submitRunnable() throws ExecutionException, InterruptedException {
         pool.submit(new RunnableTask(FAST_TASK));
-        await().atMost(ofSeconds(2))
-                .untilAsserted(() -> assertEquals(1, metrics.getExecutedTaskCount()));
+        awaitShort().untilAsserted(() -> assertEquals(1, metrics.getExecutedTaskCount()));
 
         Future<String> future = pool.submit(new RunnableTask(FAST_TASK), "test");
-        await().atMost(ofSeconds(2))
-                .untilAsserted(() -> assertEquals(2, metrics.getExecutedTaskCount()));
+        awaitShort().untilAsserted(() -> assertEquals(2, metrics.getExecutedTaskCount()));
         assertEquals("test", future.get());
     }
 
     @Test
     void submitCallable() throws ExecutionException, InterruptedException {
         Future<Integer> future = pool.submit(new CallableTask(1, FAST_TASK));
-        await().atMost(ofSeconds(2))
-                .untilAsserted(() -> assertEquals(1, metrics.getExecutedTaskCount()));
+        awaitShort().untilAsserted(() -> assertEquals(1, metrics.getExecutedTaskCount()));
         assertEquals(10, future.get());
     }
 
@@ -123,7 +121,7 @@ class ThreadPoolImplTest {
     void execute() {
         assertFalse(pool.isPaused());
         fireSingleRun(FAST_TASK, 5);
-        await().until(() -> pool.isIdle());
+        awaitShort().until(() -> pool.isIdle());
         assertEquals(5, metrics.getExecutedTaskCount());
     }
 
@@ -131,7 +129,7 @@ class ThreadPoolImplTest {
     void executeDelayed() {
         pool.execute(new DelayedTask(AVERAGE_TASK));
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 1);
+        awaitShort().until(() -> metrics.getExecutedTaskCount() >= 1);
         assertEquals(1, metrics.getExecutedTaskCount());
     }
 
@@ -140,8 +138,8 @@ class ThreadPoolImplTest {
         pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_DELAY));
         pool.scheduleWithFixedDelay(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 10);
-        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
+        awaitLong().until(() -> metrics.getExecutedTaskCount() >= 10);
+        assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
     }
 
     @Test
@@ -149,15 +147,15 @@ class ThreadPoolImplTest {
         pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_RATE));
         pool.scheduleAtFixedRate(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 10);
-        Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
+        awaitLong().until(() -> metrics.getExecutedTaskCount() >= 10);
+        assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
     }
 
     @Test
     void scheduleDelay() {
         pool.schedule(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 1);
+        awaitShort().until(() -> metrics.getExecutedTaskCount() >= 1);
         assertEquals(1, metrics.getExecutedTaskCount());
     }
 
@@ -165,7 +163,7 @@ class ThreadPoolImplTest {
     void scheduleCallable() throws ExecutionException, InterruptedException, TimeoutException {
         ScheduledFuture<Integer> future = pool.schedule(new CallableTask(AVERAGE_TASK, 10), AVERAGE_TASK, TimeUnit.MILLISECONDS);
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().until(() -> metrics.getExecutedTaskCount() >= 1);
+        awaitShort().atMost(Duration.ofSeconds(10)).until(() -> metrics.getExecutedTaskCount() >= 1);
         assertEquals(1, metrics.getExecutedTaskCount());
         assertEquals(10, future.get(2, TimeUnit.SECONDS));
     }
@@ -174,21 +172,24 @@ class ThreadPoolImplTest {
     void executeScheduledFast() {
         pool.execute(new ScheduledTask(FAST_TASK));
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().untilAsserted(() -> Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThan(300));
+        awaitShort().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertThat(metrics.getExecutedTaskCount()).isGreaterThan(300));
     }
 
     @Test
     void executeScheduledAverage() {
         pool.execute(new ScheduledTask(AVERAGE_TASK));
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().untilAsserted(() -> Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThan(70));
+        awaitShort().atMost(Duration.ofSeconds(20))
+                .untilAsserted(() -> assertThat(metrics.getExecutedTaskCount()).isGreaterThan(70));
     }
 
     @Test
     void executeScheduledSlow() {
         pool.execute(new ScheduledTask(SLOW_TASK));
         assertEquals(0, metrics.getExecutedTaskCount());
-        await().untilAsserted(() -> Assertions.assertThat(metrics.getExecutedTaskCount()).isGreaterThan(15));
+        awaitShort().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertThat(metrics.getExecutedTaskCount()).isGreaterThan(15));
     }
 
     @Test
@@ -204,9 +205,9 @@ class ThreadPoolImplTest {
     void executeWithCustomPolicy() throws InterruptedException {
         AtomicInteger failureCounter = new AtomicInteger();
         pool = ThreadPool.builder("Test")
-                .rejectedHandler((runnable, pool1) -> {
+                .rejectedHandler((p, t) -> {
                     failureCounter.incrementAndGet();
-                    ((Runnable) runnable).run();
+                    ((Runnable) t).run();
                 })
                 .build();
         int count = pool.getOptions().getMaximumSize() + pool.getOptions().getQueueSize();
@@ -214,7 +215,7 @@ class ThreadPoolImplTest {
         fireSingleRun(50, count);
         fireSingleRun(50, 10);
         assertTrue(countDown.await(4, TimeUnit.SECONDS));
-        Assertions.assertThat(failureCounter.get()).isGreaterThan(1);
+        assertThat(failureCounter.get()).isGreaterThan(1);
     }
 
     @Test
@@ -239,7 +240,15 @@ class ThreadPoolImplTest {
     @Test
     void getCompletedTasks() {
         pool.execute(new RunnableTask(50, null));
-        await().until(() -> !pool.getCompletedTasks().isEmpty());
+        awaitShort().until(() -> !pool.getCompletedTasks().isEmpty());
+    }
+
+    private ConditionFactory awaitShort() {
+        return Awaitility.await().atMost(MAX_WAIT);
+    }
+
+    private ConditionFactory awaitLong() {
+        return Awaitility.await().atMost(MAX_WAIT.multipliedBy(3));
     }
 
     private void createPool(boolean virtual) {

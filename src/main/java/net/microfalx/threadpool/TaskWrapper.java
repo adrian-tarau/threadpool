@@ -9,6 +9,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.StringJoiner;
 
+import static java.lang.System.currentTimeMillis;
+import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofNanos;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.StringUtils.beautifyCamelCase;
@@ -23,10 +25,9 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     private final T task;
     private final long id;
 
-    volatile Mode mode = Mode.SINGLE;
-    volatile long lastScheduled = System.currentTimeMillis();
-    volatile long lastExecuted;
-    volatile long startedAt;
+    volatile long lastScheduledExecution = currentTimeMillis();
+    volatile long lastActualExecution;
+    volatile long lastCompletion;
     volatile Throwable throwable;
     volatile Duration duration;
     volatile Thread thread;
@@ -75,12 +76,16 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
 
     @Override
     public LocalDateTime getStartedAt() {
-        return startedAt == 0 ? null : toLocalDateTime(startedAt);
+        return lastActualExecution == 0 ? null : toLocalDateTime(lastActualExecution);
     }
 
     @Override
     public Duration getDuration() {
-        return duration;
+        if (thread != null) {
+            return ofMillis(currentTimeMillis() - lastActualExecution);
+        } else {
+            return duration;
+        }
     }
 
     @Override
@@ -109,7 +114,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
         beforeExecute();
         this.thread = Thread.currentThread();
         R result = null;
-        this.startedAt = System.currentTimeMillis();
+        this.lastActualExecution = currentTimeMillis();
         long start = System.nanoTime();
         try {
             result = METRICS.timeCallable(ClassUtils.getCompactName(getTaskClass()), this::doExecute);
@@ -119,7 +124,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
         } finally {
             this.thread = null;
             duration = ofNanos(System.nanoTime() - start);
-            lastExecuted = System.currentTimeMillis();
+            lastCompletion = currentTimeMillis();
             threadPool.completeTask(this);
             afterExecute(result);
         }
@@ -133,7 +138,6 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     }
 
     void afterExecute(R result) {
-        // empty by design
     }
 
     void updateToString(StringJoiner joiner) {
@@ -145,16 +149,10 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
         StringJoiner joiner = new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
                 .add("threadPool=" + threadPool.getOptions().getNamePrefix())
                 .add("task=" + ClassUtils.getName(task))
-                .add("mode=" + mode)
-                .add("lastScheduled=" + toLocalDateTime(lastScheduled))
-                .add("lastExecuted=" + toLocalDateTime(lastExecuted));
+                .add("lastScheduled=" + toLocalDateTime(lastScheduledExecution))
+                .add("lastExecuted=" + toLocalDateTime(lastActualExecution))
+                .add("lastCompleted=" + toLocalDateTime(lastCompletion));
         updateToString(joiner);
         return joiner.toString();
-    }
-
-    enum Mode {
-        SINGLE,
-        FIXED_RATE,
-        FIXED_DELAY
     }
 }

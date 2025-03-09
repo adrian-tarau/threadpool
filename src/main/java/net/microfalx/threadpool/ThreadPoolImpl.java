@@ -1,5 +1,6 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.ThreadUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,9 @@ import static java.util.Collections.unmodifiableCollection;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.microfalx.lang.ArgumentUtils.requireBounded;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.FormatterUtils.formatDuration;
 import static net.microfalx.lang.StringUtils.toIdentifier;
+import static net.microfalx.lang.TimeUtils.toDuration;
 
 /**
  * Thread pool implementation.
@@ -28,6 +31,9 @@ import static net.microfalx.lang.StringUtils.toIdentifier;
 final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool {
 
     final static Logger LOGGER = LoggerFactory.getLogger(ThreadPoolImpl.class);
+
+    private final static Duration INITIAL_DELAY = Duration.ofSeconds(30);
+    private final static boolean NO_INITIAL_DELAY = Boolean.getBoolean("thread.pool.no_initial_delay");
 
     private final BlockingQueue<TaskWrapper<?, ?>> taskQueue;
     private final BlockingQueue<TaskWrapper<?, ?>> extraTaskQueue;
@@ -199,6 +205,13 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     @Override
+    public ScheduledFuture<?> schedule(Runnable task, Trigger trigger) {
+        requireNonNull(task);
+        requireNonNull(trigger);
+        return null;
+    }
+
+    @Override
     public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, long initialDelay, long period, TimeUnit unit) {
         requireNonNull(task);
         requireNonNull(unit);
@@ -206,9 +219,18 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireBounded(period, 1, MAX_VALUE);
         checkIfShuttingDown(task);
         Callable<?> callable = Executors.callable(task);
-        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, initialDelay, unit).interval(TaskWrapper.Mode.FIXED_RATE, period, unit);
+        LOGGER.info("Register task '{}' at fixed rate: initial delay = {}, period = {}", ClassUtils.getName(task),
+                formatDuration(toDuration(initialDelay, unit)), formatDuration(toDuration(period, unit)));
+        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, initialDelay, unit)
+                .trigger(new PeriodicTrigger(period, unit, true));
         registerScheduled(callableTask);
         return callableTask.getFuture();
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleAtFixedRate(Runnable task, Duration period) {
+        requireNonNull(period);
+        return scheduleAtFixedRate(task, getInitialDelay(period), period);
     }
 
     @Override
@@ -223,16 +245,8 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     @Override
-    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, long initialDelay, long delay, TimeUnit unit) {
-        requireNonNull(task);
-        requireNonNull(unit);
-        requireBounded(initialDelay, 0, MAX_VALUE);
-        requireBounded(delay, 0, MAX_VALUE);
-        checkIfShuttingDown(task);
-        Callable<?> callable = Executors.callable(task);
-        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, initialDelay, unit).interval(TaskWrapper.Mode.FIXED_DELAY, delay, unit);
-        registerScheduled(callableTask);
-        return callableTask.getFuture();
+    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, Duration delay) {
+        return scheduleAtFixedRate(task, getInitialDelay(delay), delay);
     }
 
     @Override
@@ -244,6 +258,22 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireBounded(delay.toMillis(), 0, MAX_VALUE);
         checkIfShuttingDown(task);
         return scheduleWithFixedDelay(task, initialDelay.toMillis(), delay.toMillis(), MILLISECONDS);
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable task, long initialDelay, long delay, TimeUnit unit) {
+        requireNonNull(task);
+        requireNonNull(unit);
+        requireBounded(initialDelay, 0, MAX_VALUE);
+        requireBounded(delay, 0, MAX_VALUE);
+        checkIfShuttingDown(task);
+        LOGGER.info("Register task '{}' with fixed delay: initial delay = {}, delay = {}", ClassUtils.getName(task),
+                formatDuration(toDuration(initialDelay, unit)), formatDuration(toDuration(delay, unit)));
+        Callable<?> callable = Executors.callable(task);
+        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, initialDelay, unit)
+                .trigger(new PeriodicTrigger(delay, unit, false));
+        registerScheduled(callableTask);
+        return callableTask.getFuture();
     }
 
     @Override
@@ -382,15 +412,25 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         }
     }
 
+    private Duration getInitialDelay(Duration period) {
+        if (NO_INITIAL_DELAY) return Duration.ZERO;
+        int seconds = (int) Math.max(30, Math.min(60, period.toSeconds() / 10));
+        seconds = ThreadLocalRandom.current().nextInt(seconds);
+        Duration initialDelay = Duration.ofSeconds(seconds);
+        return INITIAL_DELAY.plus(initialDelay);
+    }
+
     private void handleScheduledAndDelayed() {
         for (; ; ) {
             CallableTaskWrapper<?> callableTask = delayedTaskQueue.poll();
             if (callableTask == null) break;
+            callableTask.markScheduled();
             if (!taskQueue.offer(callableTask)) extraTaskQueue.add(callableTask);
         }
     }
 
     private void registerScheduled(CallableTaskWrapper<?> callableTask) {
+        callableTask.markScheduled();
         delayedTaskQueue.offer(callableTask);
         if (callableTask.isPeriodic()) scheduled.add(callableTask);
         dispatcher.wakeUp(this);

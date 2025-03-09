@@ -49,6 +49,11 @@ public interface ScheduledTask extends Task {
         /**
          * The task is scheduled at an interval after the previous run is completed.
          */
-        FIXED_DELAY
+        FIXED_DELAY,
+
+        /**
+         * The task is scheduled at an interval calculated by an expression or algorithm.
+         */
+        EXPRESSION
     }
 }
