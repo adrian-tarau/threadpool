@@ -1,6 +1,7 @@
 package net.microfalx.threadpool;
 
 import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.System.currentTimeMillis;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
@@ -14,8 +15,11 @@ import static net.microfalx.lang.TimeUtils.millisSince;
  */
 class RunnableProxy implements Runnable {
 
+    private static final int MAX_INTERRUPTED_COUNT = 10;
+
     private final ThreadPoolImpl threadPool;
     private final ThreadPool.Options options;
+    private final AtomicInteger interruptedCount = new AtomicInteger();
     private volatile TaskWrapper<?, ?> task;
     private final long startTime = currentTimeMillis();
     private volatile long lastCompletion;
@@ -73,15 +77,25 @@ class RunnableProxy implements Runnable {
             if (task != null) lastCompletion = currentTimeMillis();
             running = false;
             task = null;
+            checkInterrupted();
         }
     }
 
     private boolean shouldStop() {
+        if (interruptedCount.get() >= MAX_INTERRUPTED_COUNT) {
+            return true;
+        }
         if (millisSince(lastCompletion) >= options.getKeepAliveTime().toMillis()) {
             return true;
         } else {
             return millisSince(startTime) >= options.getMaximumReuseTime().toMillis();
         }
+    }
+
+    private void checkInterrupted() {
+        // do not remove, this resets the interrupt status
+        boolean interrupted = Thread.interrupted();
+        if (interrupted) interruptedCount.incrementAndGet();
     }
 
     @Override
