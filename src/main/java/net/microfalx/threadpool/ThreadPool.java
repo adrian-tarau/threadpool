@@ -12,6 +12,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
+import static java.util.Objects.requireNonNullElseGet;
 import static net.microfalx.lang.ArgumentUtils.*;
 
 /**
@@ -618,6 +619,16 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          */
         public ThreadPool build() {
             return new ThreadPoolImpl(queue, options);
+        }
+
+        /**
+         * Creates the thread pool.
+         *
+         * @return a non-null instance
+         */
+        public ThreadPool getOrBuild() {
+            ThreadPoolImpl threadPool = Dispatcher.getInstance().getThreadPool(options);
+            return requireNonNullElseGet(threadPool, () -> new ThreadPoolImpl(queue, options));
         }
     }
 }

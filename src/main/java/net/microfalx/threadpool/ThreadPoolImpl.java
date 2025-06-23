@@ -22,8 +22,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.microfalx.lang.ArgumentUtils.requireBounded;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.lang.FormatterUtils.formatDuration;
-import static net.microfalx.lang.StringUtils.toIdentifier;
 import static net.microfalx.lang.TimeUtils.toDuration;
+import static net.microfalx.threadpool.ThreadPoolUtils.getThreadPoolId;
 
 /**
  * Thread pool implementation.
@@ -62,7 +62,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireNonNull(taskQueue);
         requireNonNull(options);
         this.taskQueue = taskQueue;
-        this.id = toIdentifier(options.namePrefix);
+        this.id = getThreadPoolId(options);
         this.options = options;
         this.factory = new ThreadFactory(this);
         this.dispatcher = Dispatcher.getInstance();

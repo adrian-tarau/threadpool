@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.FutureTask;
 
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.StringUtils.toIdentifier;
 
 /**
  * Various utilities around thread pools.
@@ -99,6 +100,10 @@ public class ThreadPoolUtils {
      */
     public static Thread[] getThreads() {
         return METRICS.time("Extract Threads", ThreadPoolUtils::doGetThreads);
+    }
+
+    static String getThreadPoolId(ThreadPool.Options options) {
+        return toIdentifier(options.getNamePrefix());
     }
 
     private static Thread[] doGetThreads() {

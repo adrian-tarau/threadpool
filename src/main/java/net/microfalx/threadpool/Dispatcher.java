@@ -11,6 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import static java.lang.System.nanoTime;
 import static java.util.Collections.unmodifiableCollection;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.threadpool.ThreadPoolUtils.getThreadPoolId;
 
 class Dispatcher {
 
@@ -42,11 +43,20 @@ class Dispatcher {
         threadPools.clear();
     }
 
-    void register(ThreadPoolImpl threadPool) {
+    synchronized void register(ThreadPoolImpl threadPool) {
         if (threadPools.contains(threadPool)) {
             throw new IllegalArgumentException("A thread pool with identifier '" + threadPool.getId() + "' already exists");
         }
         threadPools.add(requireNonNull(threadPool));
+    }
+
+    synchronized ThreadPoolImpl getThreadPool(ThreadPool.Options options) {
+        requireNonNull(options);
+        String id = getThreadPoolId(options);
+        for (ThreadPoolImpl threadPool : threadPools) {
+            if (threadPool.getId().equals(id)) return threadPool;
+        }
+        return null;
     }
 
     void unregister(ThreadPoolImpl threadPool) {
