@@ -618,7 +618,7 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          * @return a non-null instance
          */
         public ThreadPool build() {
-            return new ThreadPoolImpl(queue, options);
+            return create();
         }
 
         /**
@@ -628,7 +628,11 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          */
         public ThreadPool getOrBuild() {
             ThreadPoolImpl threadPool = Dispatcher.getInstance().getThreadPool(options);
-            return requireNonNullElseGet(threadPool, () -> new ThreadPoolImpl(queue, options));
+            return requireNonNullElseGet(threadPool, this::create);
+        }
+
+        private ThreadPool create() {
+            return ThreadPoolUtils.JDK_POOL ? new JdkThreadPoolImpl(queue, options) : new ThreadPoolImpl(queue, options);
         }
     }
 }

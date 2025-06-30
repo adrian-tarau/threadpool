@@ -17,6 +17,8 @@ import static net.microfalx.lang.StringUtils.toIdentifier;
  */
 public class ThreadPoolUtils {
 
+    static final boolean JDK_POOL = false;
+
     /**
      * The maximum allowed numbers of threads in any pool.
      */

@@ -94,7 +94,7 @@ class RunnableProxyTest {
         public void run() {
             if (fail) {
                 if (interrupt) {
-                    ExceptionUtils.throwException(new InterruptedException("Stop"));
+                    ExceptionUtils.rethrowException(new InterruptedException("Stop"));
                 } else {
                     throw new IllegalArgumentException("Not valid");
                 }

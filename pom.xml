@@ -57,8 +57,8 @@
 
     <properties>
         <bom.version>1.0.11</bom.version>
-        <lang.version>1.0.0</lang.version>
-        <metrics.version>1.0.0</metrics.version>
+        <lang.version>1.0.1-SNAPSHOT</lang.version>
+        <metrics.version>1.0.1-SNAPSHOT</metrics.version>
     </properties>
 
     <developers>

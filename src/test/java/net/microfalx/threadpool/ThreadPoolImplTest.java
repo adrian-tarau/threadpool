@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,12 +25,15 @@ class ThreadPoolImplTest {
 
     private ThreadPool pool;
     private ThreadPool.Metrics metrics;
+    private final Throwable throwable = new IOException("Test failure");
+    private Collection<Class<?>> failureClasses = new LinkedBlockingQueue<>();
 
     private static CountDownLatch countDown;
 
     @BeforeEach
     void setup() {
         createPool(false);
+        failureClasses.clear();
     }
 
     @AfterEach
@@ -143,6 +147,16 @@ class ThreadPoolImplTest {
     }
 
     @Test
+    void scheduleFixedDelayAndFailure() {
+        pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_DELAY, throwable));
+        pool.scheduleWithFixedDelay(new RunnableTask(AVERAGE_TASK, throwable), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
+        assertEquals(0, metrics.getExecutedTaskCount());
+        awaitLong().until(() -> metrics.getExecutedTaskCount() >= 10);
+        assertThat(metrics.getExecutedTaskCount()).isGreaterThanOrEqualTo(10);
+        assertThat(failureClasses.size()).isGreaterThan(10);
+    }
+
+    @Test
     void scheduleFixedRate() {
         pool.execute(new ScheduledTask(AVERAGE_TASK, net.microfalx.threadpool.ScheduledTask.Strategy.FIXED_RATE));
         pool.scheduleAtFixedRate(new RunnableTask(AVERAGE_TASK), AVERAGE_TASK, AVERAGE_TASK, TimeUnit.MILLISECONDS);
@@ -252,7 +266,7 @@ class ThreadPoolImplTest {
     }
 
     private void createPool(boolean virtual) {
-        pool = ThreadPool.builder(virtual ? "Virtual" : "Native").virtual(virtual).build();
+        pool = ThreadPool.builder(virtual ? "Virtual" : "Native").virtual(virtual).failureHandler(new FailedHandlerImpl()).build();
         metrics = pool.getMetrics();
     }
 
@@ -265,6 +279,7 @@ class ThreadPoolImplTest {
     static class DelayedTask implements net.microfalx.threadpool.DelayedTask, Runnable {
 
         private final int executionTime;
+        private Throwable throwable;
 
         public DelayedTask(int executionTime) {
             this.executionTime = executionTime;
@@ -282,6 +297,7 @@ class ThreadPoolImplTest {
             } catch (InterruptedException e) {
                 // just stop
             }
+            if (throwable != null) throw new IllegalStateException(throwable);
         }
     }
 
@@ -289,6 +305,7 @@ class ThreadPoolImplTest {
 
         private final int executionTime;
         private final Strategy strategy;
+        private Throwable throwable;
 
         public ScheduledTask(int executionTime) {
             this(executionTime, Strategy.FIXED_RATE);
@@ -297,6 +314,12 @@ class ThreadPoolImplTest {
         public ScheduledTask(int executionTime, Strategy strategy) {
             this.executionTime = executionTime;
             this.strategy = strategy;
+        }
+
+        public ScheduledTask(int executionTime, Strategy strategy, Throwable throwable) {
+            this.executionTime = executionTime;
+            this.strategy = strategy;
+            this.throwable = throwable;
         }
 
         @Override
@@ -321,6 +344,7 @@ class ThreadPoolImplTest {
             } catch (InterruptedException e) {
                 // just stop
             }
+            if (throwable != null) throw new IllegalStateException(throwable);
         }
     }
 
@@ -379,6 +403,15 @@ class ThreadPoolImplTest {
             }
             if (throwable != null) throw new IllegalStateException(throwable);
             return value;
+        }
+    }
+
+    private class FailedHandlerImpl implements ThreadPool.FailedHandler {
+
+        @Override
+        public void failed(ThreadPool pool, Thread thread, Throwable throwable, Object task) {
+            throwable = throwable.getCause() != null ? throwable.getCause() : throwable;
+            failureClasses.add(throwable.getClass());
         }
     }
 }
