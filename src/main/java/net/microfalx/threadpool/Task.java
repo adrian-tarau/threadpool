@@ -1,5 +1,6 @@
 package net.microfalx.threadpool;
 
+import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.Descriptable;
 import net.microfalx.lang.Nameable;
 
@@ -12,7 +13,7 @@ public interface Task extends Nameable, Descriptable {
 
     @Override
     default String getName() {
-        return beautifyCamelCase(getClass().getSimpleName());
+        return beautifyCamelCase(ClassUtils.getSimpleName(getClass()));
     }
 
     @Override
