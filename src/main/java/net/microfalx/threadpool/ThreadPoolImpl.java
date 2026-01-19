@@ -208,7 +208,25 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     public ScheduledFuture<?> schedule(Runnable task, Trigger trigger) {
         requireNonNull(task);
         requireNonNull(trigger);
-        return null;
+        checkIfShuttingDown(task);
+        Callable<?> callable = Executors.callable(task);
+        if (trigger instanceof IntervalAwareTrigger intervalAwareTrigger) {
+            LOGGER.info("Register task '{}' with interval = {}, strategy = {}", ClassUtils.getName(task),
+                    formatDuration(intervalAwareTrigger.getInterval()), intervalAwareTrigger.getStrategy());
+            CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, intervalAwareTrigger.getInterval().toMillis(), MILLISECONDS)
+                    .trigger(trigger);
+            registerScheduled(callableTask);
+            return callableTask.getFuture();
+        } else if (trigger instanceof CronTrigger cronTrigger) {
+            LOGGER.info("Register task '{}' with cron expression = {}, interval = {}", ClassUtils.getName(task), cronTrigger.getExpression(),
+                    formatDuration(cronTrigger.getInterval()));
+            CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, cronTrigger.getInterval().toMillis(), MILLISECONDS)
+                    .trigger(trigger);
+            registerScheduled(callableTask);
+            return callableTask.getFuture();
+        } else {
+            throw new IllegalArgumentException("Unsupported trigger type: " + trigger.getClass());
+        }
     }
 
     @Override

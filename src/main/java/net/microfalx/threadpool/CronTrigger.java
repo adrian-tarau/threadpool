@@ -24,6 +24,15 @@ public class CronTrigger extends AbstractTrigger {
         cronExpression = parse(expression);
     }
 
+    /**
+     * Returns the CRON expression.
+     *
+     * @return a non-null instance
+     */
+    public String getExpression() {
+        return expression;
+    }
+
     @Override
     public Instant nextExecution() {
         return cronExpression.getNextValidTimeAfter(Date.from(getLastScheduledExecution())).toInstant();
