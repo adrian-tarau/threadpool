@@ -46,6 +46,33 @@ public interface TaskDescriptor extends Task, Identifiable<Long> {
     Duration getDuration();
 
     /**
+     * Returns the number of times the task was executed.
+     * <p>
+     * It is only meaningful for periodic tasks.
+     *
+     * @return a non-null instance
+     */
+    default Integer getExecutionCount() {
+        return null;
+    }
+
+    /**
+     * Returns the last execution time.
+     *
+     * @return the execution time, null if it was not executed before
+     */
+    LocalDateTime getLastExecutionTime();
+
+    /**
+     * Returns the next execution time.
+     *
+     * @return the next execution time, null if it is not scheduled for execution
+     */
+    default LocalDateTime getNextExecutionTime() {
+        return null;
+    }
+
+    /**
      * Returns whether this task is periodic.
      *
      * @return {@code true} if this task is periodic, {@code false} otherwise

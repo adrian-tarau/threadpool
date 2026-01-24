@@ -448,7 +448,6 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     }
 
     private void registerScheduled(CallableTaskWrapper<?> callableTask) {
-        callableTask.markScheduled();
         if (callableTask.isPeriodic()) {
             callableTask.updateDelay();
             scheduled.add(callableTask);

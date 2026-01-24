@@ -11,9 +11,23 @@ class CronTriggerTest extends AbstractTriggerTestCase {
     @Test
     void everyMinute() {
         CronTrigger trigger = new CronTrigger("0 * * * * ? *");
-        updateTrigger(trigger);
         org.assertj.core.api.Assertions.assertThat(trigger.nextExecution().toEpochMilli() - scheduledTime)
                 .isBetween(0L, 60_000L);
+    }
+
+    @Test
+    void every15Minute() {
+        CronTrigger trigger = new CronTrigger("0 0/15 * ? * * *");
+        updateTrigger(trigger);
+        org.assertj.core.api.Assertions.assertThat(trigger.nextExecution().toEpochMilli() - scheduledTime)
+                .isBetween(0L, 15 * 60_000L);
+    }
+
+    @Test
+    void every6Hours() {
+        CronTrigger trigger = new CronTrigger("0 0 0/6 ? * * *");
+        org.assertj.core.api.Assertions.assertThat(trigger.nextExecution().toEpochMilli() - scheduledTime)
+                .isBetween(0L, 6 * 60 * 60_000L);
     }
 
     @Test

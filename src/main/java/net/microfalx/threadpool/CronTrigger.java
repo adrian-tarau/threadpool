@@ -36,7 +36,7 @@ public class CronTrigger extends AbstractTrigger {
     @Override
     public Instant nextExecution() {
         Instant scheduled = getLastScheduledExecution();
-        if (scheduled == null) scheduled = Instant.now();
+        if (scheduled == null) scheduled = Instant.now().minusSeconds(1);
         return cronExpression.getNextValidTimeAfter(Date.from(scheduled)).toInstant();
     }
 

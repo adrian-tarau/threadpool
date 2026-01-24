@@ -49,14 +49,18 @@ public abstract class AbstractTrigger implements Trigger {
      * @param lastCompletion         the time when the task was completed
      */
     void update(long lastScheduledExecution, long lastActualExecution, long lastCompletion) {
-        this.lastScheduledExecution = Instant.ofEpochMilli(lastScheduledExecution);
-        this.lastActualExecution = Instant.ofEpochMilli(lastActualExecution);
-        this.lastCompletion = Instant.ofEpochMilli(lastCompletion);
+        this.lastScheduledExecution = toInstant(lastScheduledExecution);
+        this.lastActualExecution = toInstant(lastActualExecution);
+        this.lastCompletion = toInstant(lastCompletion);
     }
 
     void initialize() {
         if (!initialized.compareAndSet(false, true)) {
             throw new IllegalStateException("Trigger is already registered: " + this);
         }
+    }
+
+    private Instant toInstant(long epochMilli) {
+        return epochMilli > 0 ? Instant.ofEpochMilli(epochMilli) : null;
     }
 }

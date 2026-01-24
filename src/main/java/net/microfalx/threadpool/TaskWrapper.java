@@ -3,11 +3,13 @@ package net.microfalx.threadpool;
 import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.Descriptable;
 import net.microfalx.lang.Nameable;
+import net.microfalx.lang.TimeUtils;
 import net.microfalx.metrics.Metrics;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.System.currentTimeMillis;
 import static java.time.Duration.ofMillis;
@@ -25,9 +27,11 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     private final T task;
     private final long id;
 
-    volatile long lastScheduledExecution = currentTimeMillis();
-    volatile long lastActualExecution;
-    volatile long lastCompletion;
+    private final AtomicInteger executionCount = new AtomicInteger();
+    volatile long lastScheduledExecution = Long.MIN_VALUE;
+    volatile long lastActualExecution = Long.MIN_VALUE;
+    volatile long lastCompletion = Long.MIN_VALUE;
+    volatile long nextScheduledExecution = Long.MIN_VALUE;
     volatile Throwable throwable;
     volatile Duration duration;
     volatile Thread thread;
@@ -76,16 +80,31 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
 
     @Override
     public LocalDateTime getStartedAt() {
-        return lastActualExecution == 0 ? null : toLocalDateTime(lastActualExecution);
+        return toLocalDateTime(lastActualExecution);
     }
 
     @Override
     public Duration getDuration() {
         if (thread != null) {
-            return ofMillis(currentTimeMillis() - lastActualExecution);
+            return lastActualExecution > 0 ? ofMillis(currentTimeMillis() - lastActualExecution) : null;
         } else {
             return duration;
         }
+    }
+
+    @Override
+    public Integer getExecutionCount() {
+        return executionCount.get();
+    }
+
+    @Override
+    public LocalDateTime getLastExecutionTime() {
+        return TimeUtils.toLocalDateTime(lastScheduledExecution);
+    }
+
+    @Override
+    public LocalDateTime getNextExecutionTime() {
+        return TimeUtils.toLocalDateTime(nextScheduledExecution);
     }
 
     @Override
@@ -114,6 +133,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
         beforeExecute();
         this.thread = Thread.currentThread();
         R result = null;
+        if (this.lastScheduledExecution <= 0) this.lastScheduledExecution = currentTimeMillis();
         this.lastActualExecution = currentTimeMillis();
         long start = System.nanoTime();
         try {
@@ -122,6 +142,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
             throwable = e;
             threadPool.failedTask(this, e);
         } finally {
+            executionCount.incrementAndGet();
             this.thread = null;
             duration = ofNanos(System.nanoTime() - start);
             lastCompletion = currentTimeMillis();

@@ -2,9 +2,11 @@ package net.microfalx.threadpool;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.StringJoiner;
 import java.util.concurrent.*;
 
+import static java.lang.System.currentTimeMillis;
 import static java.time.Duration.ofNanos;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static net.microfalx.lang.FormatterUtils.formatDuration;
@@ -22,7 +24,6 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
         this.delay = NANOSECONDS.convert(delay, unit);
         this.time = System.nanoTime() + this.delay;
         future = new ScheduledFutureWrapper<>(this);
-        markScheduled();
     }
 
     @Override
@@ -37,7 +38,7 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
 
     @Override
     public long getDelay(TimeUnit unit) {
-        return Math.max(0, unit.convert(time - System.nanoTime(), NANOSECONDS));
+        return unit.convert(time - System.nanoTime(), NANOSECONDS);
     }
 
     @Override
@@ -51,13 +52,19 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
 
     @Override
     public Duration getInitialDelay() {
-        return Duration.ofNanos(delay);
+        if (trigger instanceof CronTrigger) {
+            return Duration.ZERO;
+        } else {
+            return ofNanos(delay);
+        }
     }
 
     @Override
     public Duration getInterval() {
         if (trigger instanceof IntervalAwareTrigger intervalTrigger) {
             return intervalTrigger.getInterval();
+        } else if (trigger instanceof CronTrigger cronTrigger) {
+            return cronTrigger.getInterval();
         } else {
             return Duration.ZERO;
         }
@@ -73,6 +80,15 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
         return getTask().call();
     }
 
+    @Override
+    public LocalDateTime getNextExecutionTime() {
+        if (isPeriodic()) {
+            return super.getNextExecutionTime();
+        } else {
+            return null;
+        }
+    }
+
     public boolean isPeriodic() {
         return trigger != null;
     }
@@ -81,8 +97,10 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
         updateTrigger();
         if (trigger != null) {
             Instant nextExecution = trigger.nextExecution();
+            nextScheduledExecution = nextExecution.toEpochMilli();
             Duration waitTime = Duration.between(Instant.now(), nextExecution);
-            time = System.nanoTime() + waitTime.toNanos();
+            this.delay = waitTime.toNanos();
+            this.time = System.nanoTime() + this.delay;
         }
     }
 
@@ -102,17 +120,17 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
     void updateToString(StringJoiner joiner) {
         joiner.add("delay=" + formatDuration(ofNanos(delay)));
         if (trigger != null) {
-            joiner.add("trigger=" + trigger)
-                    .add("interval=" + formatDuration(getInterval()));
+            joiner.add("trigger=" + trigger).add("interval=" + formatDuration(getInterval()));
         }
     }
 
     void markScheduled() {
-        lastScheduledExecution = System.currentTimeMillis();
+        lastScheduledExecution = currentTimeMillis();
     }
 
     private void updateTrigger() {
-        if (trigger instanceof AbstractTrigger abstractTrigger) {
+        if (!(trigger instanceof AbstractTrigger abstractTrigger)) return;
+        if (lastScheduledExecution > 0) {
             abstractTrigger.update(lastScheduledExecution, lastActualExecution, lastCompletion);
         }
     }

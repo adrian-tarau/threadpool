@@ -62,4 +62,9 @@ class DetachedTaskDescriptor extends NamedIdentityAware<Long> implements TaskDes
     public Throwable getThrowable() {
         return throwable;
     }
+
+    @Override
+    public LocalDateTime getLastExecutionTime() {
+        return startedAt;
+    }
 }
