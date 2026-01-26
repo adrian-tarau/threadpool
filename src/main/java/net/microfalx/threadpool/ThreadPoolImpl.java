@@ -40,7 +40,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     private final DelayQueue<CallableTaskWrapper<?>> delayedTaskQueue;
     private final Collection<TaskWrapper<?, ?>> running = new CopyOnWriteArrayList<>();
     private final Collection<TaskWrapper<?, ?>> scheduled = new CopyOnWriteArrayList<>();
-    private final Queue<TaskDescriptor> completed = new ArrayBlockingQueue<>(500);
+    private final Queue<TaskDescriptor> completed = new ArrayBlockingQueue<>(100);
     private final Map<Class<?>, Set<Object>> singletonPermits = new ConcurrentHashMap<>();
     private final String id;
     private final OptionsImpl options;
