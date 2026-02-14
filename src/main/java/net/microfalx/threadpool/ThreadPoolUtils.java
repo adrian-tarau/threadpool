@@ -1,7 +1,6 @@
 package net.microfalx.threadpool;
 
 import net.microfalx.lang.ClassUtils;
-import net.microfalx.lang.ExceptionUtils;
 import net.microfalx.lang.IdGenerator;
 import net.microfalx.metrics.Metrics;
 
@@ -10,6 +9,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.FutureTask;
 
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
+import static net.microfalx.lang.ExceptionUtils.getRootCauseDescription;
 import static net.microfalx.lang.StringUtils.toIdentifier;
 
 /**
@@ -155,7 +155,7 @@ public class ThreadPoolUtils {
             GET_ALL_THREADS = Thread.class.getDeclaredMethod("getAllThreads");
             GET_ALL_THREADS.setAccessible(true);
         } catch (Throwable e) {
-            System.err.println("Failed to introspect internal thread structures: " + ExceptionUtils.getRootCauseMessage(e));
+            System.err.println("Failed to introspect internal thread structures: " + getRootCauseDescription(e));
         }
     }
 }

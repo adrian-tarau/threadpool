@@ -59,7 +59,7 @@ public class CronTrigger extends AbstractTrigger {
         try {
             return new CronExpression(expression);
         } catch (ParseException e) {
-            throw new IllegalArgumentException("Invalid cron expression '" + expression + "', root cause: " + ExceptionUtils.getRootCauseMessage(e));
+            throw new IllegalArgumentException("Invalid cron expression '" + expression + "', root cause: " + ExceptionUtils.getRootCauseDescription(e));
         }
     }
 }
