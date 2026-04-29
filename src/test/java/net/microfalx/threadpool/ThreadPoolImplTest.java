@@ -257,6 +257,17 @@ class ThreadPoolImplTest {
         awaitShort().until(() -> !pool.getCompletedTasks().isEmpty());
     }
 
+    @Test
+    void scheduleTwice() {
+        Trigger trigger = Trigger.fixedRate(Duration.ofSeconds(30));
+        pool.schedule(new IdentifiableTask(), trigger);
+        assertEquals(1, pool.getScheduledTasks().size());
+
+        trigger = Trigger.fixedRate(Duration.ofSeconds(30));
+        pool.schedule(new IdentifiableTask(), trigger);
+        assertEquals(1, pool.getScheduledTasks().size());
+    }
+
     private ConditionFactory awaitShort() {
         return Awaitility.await().atMost(MAX_WAIT);
     }
@@ -273,6 +284,14 @@ class ThreadPoolImplTest {
     private void fireSingleRun(int executionTime, int count) {
         for (int i = 0; i < count; i++) {
             pool.execute(new RunnableTask(executionTime));
+        }
+    }
+
+    static class IdentifiableTask implements net.microfalx.threadpool.IdentifiableTask, Runnable {
+
+        @Override
+        public void run() {
+
         }
     }
 

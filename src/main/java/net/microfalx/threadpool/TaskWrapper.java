@@ -8,6 +8,7 @@ import net.microfalx.metrics.Metrics;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,6 +27,7 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     private final ThreadPoolImpl threadPool;
     private final T task;
     private final long id;
+    private final String uniqueId;
 
     private final AtomicInteger executionCount = new AtomicInteger();
     volatile long lastScheduledExecution = Long.MIN_VALUE;
@@ -37,13 +39,14 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     volatile Thread thread;
     volatile Object unwrappedTask;
 
-    TaskWrapper(ThreadPoolImpl threadPool, T task) {
+    TaskWrapper(ThreadPoolImpl threadPool, T task, Object unwrappedTask) {
         requireNonNull(threadPool);
         requireNonNull(task);
         this.threadPool = threadPool;
         this.task = task;
-        this.unwrappedTask = unwrapTask();
+        this.unwrappedTask = unwrappedTask != null ? unwrappedTask : unwrapTask();
         this.id = ID_GENERATOR.next();
+        this.uniqueId = this.unwrappedTask instanceof IdentifiableTask identifiableTask ? identifiableTask.getId() : Long.toString(this.id);
     }
 
     @Override
@@ -115,6 +118,18 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
     @Override
     public Throwable getThrowable() {
         return throwable;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        TaskWrapper<?, ?> that = (TaskWrapper<?, ?>) o;
+        return Objects.equals(uniqueId, that.uniqueId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(uniqueId);
     }
 
     Object unwrapTask() {

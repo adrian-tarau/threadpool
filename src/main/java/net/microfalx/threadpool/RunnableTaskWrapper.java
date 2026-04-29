@@ -3,7 +3,7 @@ package net.microfalx.threadpool;
 final class RunnableTaskWrapper extends TaskWrapper<Runnable, Object> {
 
     RunnableTaskWrapper(ThreadPoolImpl threadPool, Runnable task) {
-        super(threadPool, task);
+        super(threadPool, task, task);
     }
 
     @Override

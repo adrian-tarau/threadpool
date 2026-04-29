@@ -19,8 +19,8 @@ final class CallableTaskWrapper<R> extends TaskWrapper<Callable<R>, R> implement
     volatile long time;
     volatile R result;
 
-    CallableTaskWrapper(ThreadPoolImpl threadPool, Callable<R> task, long delay, TimeUnit unit) {
-        super(threadPool, task);
+    CallableTaskWrapper(ThreadPoolImpl threadPool, Callable<R> task, Object unwrappedTask, long delay, TimeUnit unit) {
+        super(threadPool, task, unwrappedTask);
         this.delay = NANOSECONDS.convert(delay, unit);
         this.time = System.nanoTime() + this.delay;
         future = new ScheduledFutureWrapper<>(this);

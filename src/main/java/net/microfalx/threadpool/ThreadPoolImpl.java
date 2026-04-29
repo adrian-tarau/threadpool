@@ -189,7 +189,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireBounded(delay, 0, MAX_VALUE);
         checkIfShuttingDown(task);
         Callable<?> callable = Executors.callable(task);
-        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, delay, unit);
+        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, delay, unit);
         registerScheduled(callableTask);
         return callableTask.getFuture();
     }
@@ -199,7 +199,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireNonNull(callable);
         requireNonNull(unit);
         requireBounded(delay, 0, MAX_VALUE);
-        CallableTaskWrapper<V> callableTask = new CallableTaskWrapper<>(this, callable, delay, unit);
+        CallableTaskWrapper<V> callableTask = new CallableTaskWrapper<>(this, callable, callable, delay, unit);
         registerScheduled(callableTask);
         return callableTask.getFuture();
     }
@@ -213,14 +213,14 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         if (trigger instanceof IntervalAwareTrigger intervalAwareTrigger) {
             LOGGER.info("Register task '{}' with interval = {}, strategy = {}", ClassUtils.getName(task),
                     formatDuration(intervalAwareTrigger.getInterval()), intervalAwareTrigger.getStrategy());
-            CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, intervalAwareTrigger.getInterval().toMillis(), MILLISECONDS)
+            CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, intervalAwareTrigger.getInterval().toMillis(), MILLISECONDS)
                     .trigger(trigger);
             registerScheduled(callableTask);
             return callableTask.getFuture();
         } else if (trigger instanceof CronTrigger cronTrigger) {
             LOGGER.info("Register task '{}' with cron expression = {}, interval = {}", ClassUtils.getName(task), cronTrigger.getExpression(),
                     formatDuration(cronTrigger.getInterval()));
-            CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, cronTrigger.getInterval().toMillis(), MILLISECONDS)
+            CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, cronTrigger.getInterval().toMillis(), MILLISECONDS)
                     .trigger(trigger);
             registerScheduled(callableTask);
             return callableTask.getFuture();
@@ -239,7 +239,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         Callable<?> callable = Executors.callable(task);
         LOGGER.info("Register task '{}' at fixed rate: initial delay = {}, period = {}", ClassUtils.getName(task),
                 formatDuration(toDuration(initialDelay, unit)), formatDuration(toDuration(period, unit)));
-        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, initialDelay, unit)
+        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, initialDelay, unit)
                 .trigger(new PeriodicTrigger(period, unit, true));
         registerScheduled(callableTask);
         return callableTask.getFuture();
@@ -288,7 +288,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         LOGGER.info("Register task '{}' with fixed delay: initial delay = {}, delay = {}", ClassUtils.getName(task),
                 formatDuration(toDuration(initialDelay, unit)), formatDuration(toDuration(delay, unit)));
         Callable<?> callable = Executors.callable(task);
-        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, initialDelay, unit)
+        CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, initialDelay, unit)
                 .trigger(new PeriodicTrigger(delay, unit, false));
         registerScheduled(callableTask);
         return callableTask.getFuture();
@@ -450,6 +450,9 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
     private void registerScheduled(CallableTaskWrapper<?> callableTask) {
         if (callableTask.isPeriodic()) {
             callableTask.updateDelay();
+            if (callableTask.unwrappedTask instanceof IdentifiableTask) {
+                scheduled.remove(callableTask);
+            }
             scheduled.add(callableTask);
         }
         delayedTaskQueue.offer(callableTask);

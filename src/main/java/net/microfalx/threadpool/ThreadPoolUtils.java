@@ -151,7 +151,6 @@ public class ThreadPoolUtils {
             RUNNABLE_ADAPTER_FIELD.setAccessible(true);
             FUTURE_TASK_FIELD = FutureTask.class.getDeclaredField("callable");
             FUTURE_TASK_FIELD.setAccessible(true);
-
             GET_ALL_THREADS = Thread.class.getDeclaredMethod("getAllThreads");
             GET_ALL_THREADS.setAccessible(true);
         } catch (Throwable e) {

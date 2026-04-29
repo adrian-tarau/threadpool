@@ -25,7 +25,7 @@ class CallableTaskWrapperTest {
     @Test
     void cronExpression15m() {
         Trigger cron = Trigger.cron("0 0/15 * ? * * *");
-        CallableTaskWrapper<Integer> taskWrapper = new CallableTaskWrapper<>(threadPool, task, 0, TimeUnit.MILLISECONDS).trigger(cron);
+        CallableTaskWrapper<Integer> taskWrapper = new CallableTaskWrapper<>(threadPool, task, task, 0, TimeUnit.MILLISECONDS).trigger(cron);
         taskWrapper.updateDelay();
         assertNull(taskWrapper.getLastExecutionTime());
         Assertions.assertThat(taskWrapper.getNextExecutionTime())
@@ -35,7 +35,7 @@ class CallableTaskWrapperTest {
     @Test
     void cronExpression6h() {
         Trigger cron = Trigger.cron("0 0 0/6 ? * * *");
-        CallableTaskWrapper<Integer> taskWrapper = new CallableTaskWrapper<>(threadPool, task, 0, TimeUnit.MILLISECONDS).trigger(cron);
+        CallableTaskWrapper<Integer> taskWrapper = new CallableTaskWrapper<>(threadPool, task, task, 0, TimeUnit.MILLISECONDS).trigger(cron);
         taskWrapper.updateDelay();
         assertNull(taskWrapper.getLastExecutionTime());
         Assertions.assertThat(taskWrapper.getNextExecutionTime())
@@ -45,7 +45,7 @@ class CallableTaskWrapperTest {
     @Test
     void cronExpression24h() {
         Trigger cron = Trigger.cron("0 0 0 * * ?");
-        CallableTaskWrapper<Integer> taskWrapper = new CallableTaskWrapper<>(threadPool, task, 0, TimeUnit.MILLISECONDS).trigger(cron);
+        CallableTaskWrapper<Integer> taskWrapper = new CallableTaskWrapper<>(threadPool, task, task, 0, TimeUnit.MILLISECONDS).trigger(cron);
         taskWrapper.updateDelay();
         assertNull(taskWrapper.getLastExecutionTime());
         Assertions.assertThat(taskWrapper.getNextExecutionTime())
