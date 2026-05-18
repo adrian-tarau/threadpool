@@ -25,7 +25,7 @@
 
     <groupId>net.microfalx</groupId>
     <artifactId>threadpool</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
 
     <parent>
         <groupId>net.microfalx</groupId>
@@ -57,8 +57,8 @@
 
     <properties>
         <bom.version>1.0.17</bom.version>
-        <lang.version>1.0.1</lang.version>
-        <metrics.version>1.0.1</metrics.version>
+        <lang.version>1.0.2-SNAPSHOT</lang.version>
+        <metrics.version>1.0.2-SNAPSHOT</metrics.version>
     </properties>
 
     <developers>
