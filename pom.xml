@@ -64,7 +64,7 @@
     <inceptionYear>2022</inceptionYear>
 
     <properties>
-        <bom.version>1.0.18</bom.version>
+        <bom.version>1.0.19</bom.version>
         <lang.version>1.0.2-SNAPSHOT</lang.version>
         <metrics.version>1.0.2-SNAPSHOT</metrics.version>
     </properties>
