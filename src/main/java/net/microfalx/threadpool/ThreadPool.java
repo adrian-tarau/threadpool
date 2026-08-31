@@ -277,6 +277,13 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          */
         boolean isVirtual();
 
+        /**
+         * Returns whether the thread pool is shared by multiple services (across the JVM).
+         *
+         * @return <code>true</code> if shared, <code>false</code> otherwise
+         */
+        boolean isShared();
+
     }
 
     /**
@@ -349,9 +356,9 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          * Invoked whenever a scheduled task fails be executed.
          *
          * @param pool      the executor attempting to execute this task
-         * @param thread      the thread attempting to execute this task
+         * @param thread    the thread attempting to execute this task
          * @param throwable the exception
-         * @param task     the task attempted to be executed
+         * @param task      the task attempted to be executed
          */
         void failed(ThreadPool pool, Thread thread, Throwable throwable, Object task);
     }
@@ -368,8 +375,8 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          * an unchecked {@link RejectedExecutionException}, which will be
          * propagated to the caller of {@code execute}.
          *
-         * @param pool     the executor attempting to execute this task
-         * @param task     the task attempted to be executed
+         * @param pool the executor attempting to execute this task
+         * @param task the task attempted to be executed
          * @throws RejectedExecutionException if there is no remedy
          */
         void rejected(ThreadPool pool, Object task);
@@ -609,6 +616,17 @@ public interface ThreadPool extends Identifiable<String>, Nameable, ScheduledExe
          */
         public Builder virtual(boolean virtual) {
             options.virtual = virtual;
+            return this;
+        }
+
+        /**
+         * Changes the shared flag.
+         *
+         * @param shared {@code true} to share the thread pool, {@code false} otherwise
+         * @return self
+         */
+        public Builder shared(boolean shared) {
+            options.shared = shared;
             return this;
         }
 

@@ -4,6 +4,7 @@ import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.Descriptable;
 import net.microfalx.lang.Nameable;
 import net.microfalx.lang.TimeUtils;
+import net.microfalx.lang.annotation.SizeOf;
 import net.microfalx.metrics.Metrics;
 
 import java.time.Duration;
@@ -24,8 +25,8 @@ abstract class TaskWrapper<T, R> implements TaskDescriptor {
 
     static Metrics METRICS = ThreadPoolUtils.METRICS.withGroup("Execute");
 
-    private final ThreadPoolImpl threadPool;
-    private final T task;
+    @SizeOf private final ThreadPoolImpl threadPool;
+    @SizeOf private final T task;
     private final long id;
     private final String uniqueId;
 

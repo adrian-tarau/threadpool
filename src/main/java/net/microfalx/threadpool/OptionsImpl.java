@@ -22,6 +22,7 @@ class OptionsImpl implements ThreadPool.Options {
     String namePrefix = "Default";
     boolean daemon = true;
     boolean virtual = false;
+    boolean shared = false;
     int queueSize = 100;
     ThreadPool.RejectedHandler rejectedHandler = new CallerRunsPolicy();
     ThreadPool.FailedHandler failureHandler = new DefaultFailedHandler();
@@ -58,6 +59,11 @@ class OptionsImpl implements ThreadPool.Options {
     @Override
     public boolean isVirtual() {
         return virtual;
+    }
+
+    @Override
+    public boolean isShared() {
+        return shared;
     }
 
     @Override
