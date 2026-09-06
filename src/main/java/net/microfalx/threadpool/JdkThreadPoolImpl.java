@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static net.microfalx.lang.ArgumentUtils.requireNonNull;
 import static net.microfalx.threadpool.ThreadPoolUtils.getThreadPoolId;
 
-public class JdkThreadPoolImpl extends AbstractExecutorService implements ThreadPool {
+class JdkThreadPoolImpl extends AbstractExecutorService implements ThreadPool {
 
     private final String id;
     private final OptionsImpl options;
