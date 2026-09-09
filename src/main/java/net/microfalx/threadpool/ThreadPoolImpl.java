@@ -2,8 +2,7 @@ package net.microfalx.threadpool;
 
 import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.ThreadUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.microfalx.lang.service.Logger;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -30,7 +29,7 @@ import static net.microfalx.threadpool.ThreadPoolUtils.getThreadPoolId;
  */
 final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool {
 
-    final static Logger LOGGER = LoggerFactory.getLogger(ThreadPoolImpl.class);
+    final static Logger LOGGER = Logger.get(ThreadPoolImpl.class);
 
     private final static Duration INITIAL_DELAY = Duration.ofSeconds(30);
     private final static boolean NO_INITIAL_DELAY = Boolean.getBoolean("thread.pool.no_initial_delay");
@@ -211,14 +210,14 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         checkIfShuttingDown(task);
         Callable<?> callable = Executors.callable(task);
         if (trigger instanceof IntervalAwareTrigger intervalAwareTrigger) {
-            LOGGER.info("Register task '{}' with interval = {}, strategy = {}", ClassUtils.getName(task),
+            LOGGER.debug("Register task '{}' with interval = {}, strategy = {}", ClassUtils.getName(task),
                     formatDuration(intervalAwareTrigger.getInterval()), intervalAwareTrigger.getStrategy());
             CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, intervalAwareTrigger.getInterval().toMillis(), MILLISECONDS)
                     .trigger(trigger);
             registerScheduled(callableTask);
             return callableTask.getFuture();
         } else if (trigger instanceof CronTrigger cronTrigger) {
-            LOGGER.info("Register task '{}' with cron expression = {}, interval = {}", ClassUtils.getName(task), cronTrigger.getExpression(),
+            LOGGER.debug("Register task '{}' with cron expression = {}, interval = {}", ClassUtils.getName(task), cronTrigger.getExpression(),
                     formatDuration(cronTrigger.getInterval()));
             CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, cronTrigger.getInterval().toMillis(), MILLISECONDS)
                     .trigger(trigger);
@@ -237,7 +236,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireBounded(period, 1, MAX_VALUE);
         checkIfShuttingDown(task);
         Callable<?> callable = Executors.callable(task);
-        LOGGER.info("Register task '{}' at fixed rate: initial delay = {}, period = {}", ClassUtils.getName(task),
+        LOGGER.debug("Register task '{}' at fixed rate: initial delay = {}, period = {}", ClassUtils.getName(task),
                 formatDuration(toDuration(initialDelay, unit)), formatDuration(toDuration(period, unit)));
         CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, initialDelay, unit)
                 .trigger(new PeriodicTrigger(period, unit, true));
@@ -285,7 +284,7 @@ final class ThreadPoolImpl extends AbstractExecutorService implements ThreadPool
         requireBounded(initialDelay, 0, MAX_VALUE);
         requireBounded(delay, 0, MAX_VALUE);
         checkIfShuttingDown(task);
-        LOGGER.info("Register task '{}' with fixed delay: initial delay = {}, delay = {}", ClassUtils.getName(task),
+        LOGGER.debug("Register task '{}' with fixed delay: initial delay = {}, delay = {}", ClassUtils.getName(task),
                 formatDuration(toDuration(initialDelay, unit)), formatDuration(toDuration(delay, unit)));
         Callable<?> callable = Executors.callable(task);
         CallableTaskWrapper<?> callableTask = new CallableTaskWrapper<>(this, callable, task, initialDelay, unit)

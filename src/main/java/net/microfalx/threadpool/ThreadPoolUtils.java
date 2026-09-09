@@ -2,9 +2,8 @@ package net.microfalx.threadpool;
 
 import net.microfalx.lang.ClassUtils;
 import net.microfalx.lang.IdGenerator;
+import net.microfalx.lang.service.Logger;
 import net.microfalx.metrics.Metrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -156,7 +155,7 @@ public class ThreadPoolUtils {
             GET_ALL_THREADS = Thread.class.getDeclaredMethod("getAllThreads");
             GET_ALL_THREADS.setAccessible(true);
         } catch (Throwable e) {
-            Logger logger = LoggerFactory.getLogger(ThreadPoolUtils.class);
+            Logger logger = Logger.get(ThreadPoolUtils.class);
             logger.warn("Failed to introspect internal thread structures: {}", getRootCauseDescription(e));
         }
     }
